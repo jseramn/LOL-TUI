@@ -55,10 +55,17 @@ fn rows_containing(buffer: &Buffer, needle: &str) -> Vec<u16> {
 }
 
 /// Rows matching `needle` excluding the local-player strip (whose label is
-/// `LOCAL`), so roster uniqueness holds once the strip repeats the local
-/// champion in later tasks.
+/// `LOCAL`) and the event-ticker section: the strip repeats the local
+/// champion, and the ticker legitimately repeats participant names that can
+/// embed champion substrings (e.g. `Syndra` inside victim `SyndraGod`), so
+/// roster scans stay scoped to the panel rows above the EVENTS header.
 fn team_rows_containing(buffer: &Buffer, needle: &str) -> Vec<u16> {
-    rows_containing(buffer, needle).into_iter().filter(|&y| !row_text(buffer, y).contains("LOCAL")).collect()
+    let events_y = find_row(buffer, "EVENTS").unwrap_or(buffer.area.height);
+    rows_containing(buffer, needle)
+        .into_iter()
+        .take_while(|&y| y < events_y)
+        .filter(|&y| !row_text(buffer, y).contains("LOCAL"))
+        .collect()
 }
 
 fn player_row(buffer: &Buffer, name: &str) -> String {
@@ -74,9 +81,13 @@ const CHAOS_NAMES: [&str; 5] =
 #[test]
 fn full_snapshot_renders_all_ten_panels_exactly_once() {
     let buffer = draw(&live_app_with("full"));
+    // Panel rows end where the event ticker begins: the ticker (ui spec R5)
+    // legitimately repeats participant NAMES, so the once-only roster scan
+    // is scoped to the rows above the EVENTS header.
+    let events_y = find_row(&buffer, "EVENTS").expect("EVENTS header");
     for name in ORDER_NAMES.into_iter().chain(CHAOS_NAMES) {
-        let rows = rows_containing(&buffer, name);
-        assert_eq!(rows.len(), 1, "{name} must appear on exactly one row");
+        let rows: Vec<u16> = (0..events_y).filter(|&y| row_text(&buffer, y).contains(name)).collect();
+        assert_eq!(rows.len(), 1, "{name} must appear on exactly one panel row");
     }
 }
 
