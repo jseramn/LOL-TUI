@@ -1,10 +1,9 @@
 //! View layer: standby, dashboard panels, event ticker, and status line.
-//! Full views land in Units 4–5 (tasks P4/P5).
 //!
-//! This module currently hosts ONLY the shell renderer ([`render`]): the
-//! minimal per-frame surface the app loop draws through and the resize
-//! contract (ui spec R1/S2) exercises via `TestBackend`. Unit 4 replaces the
-//! live-view branch, Unit 5 the standby/ticker/status branches.
+//! This module hosts the shell renderer ([`render`]) that dispatches per
+//! lifecycle phase: the live branch routes to [`dashboard`] (Unit 4); the
+//! standby branch is still a minimal placeholder until Unit 5 owns
+//! [`standby`]/[`status`]/[`ticker`].
 
 pub mod dashboard;
 pub mod standby;
@@ -15,15 +14,17 @@ use crate::app::{App, Phase};
 use ratatui::Frame;
 use ratatui::widgets::Paragraph;
 
-/// Shell-level placeholder rendering: one phase headline drawn into the full
-/// frame area. Deliberately trivial so the resize guarantee (next frame fits
-/// the new bounds, nothing panics) holds by construction until the real
-/// views arrive; `Paragraph` clips to the given area, never past it.
+/// Shell-level phase dispatch. Both branches clip to the frame area (never
+/// panic), preserving the resize guarantee exercised via `TestBackend`.
 pub fn render(frame: &mut Frame, app: &App) {
-    let area = frame.area();
-    let headline = match app.phase() {
-        Phase::NotInGame => "Waiting for a live game...",
-        Phase::InGame { .. } => "LIVE",
-    };
-    frame.render_widget(Paragraph::new(headline), area);
+    match app.phase() {
+        Phase::NotInGame => standby_placeholder(frame),
+        Phase::InGame { .. } => dashboard::render(frame, app),
+    }
+}
+
+/// Standby placeholder: one silent line, no error output (ui spec R2).
+/// Unit 5 replaces this with the real `standby` view.
+fn standby_placeholder(frame: &mut Frame) {
+    frame.render_widget(Paragraph::new("Waiting for a live game..."), frame.area());
 }
