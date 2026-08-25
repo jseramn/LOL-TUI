@@ -14,7 +14,6 @@ use crate::api::poller::Clock;
 use crate::app::App;
 use crate::model::snapshot::{LocalPlayerSnapshot, PlayerSnapshot, Snapshot, Team};
 use ratatui::Frame;
-use ratatui::widgets::Paragraph;
 
 /// Explicit marker for a field the API did not expose. Absence is never
 /// rendered as a fabricated value (ui spec: degradation is per field).
