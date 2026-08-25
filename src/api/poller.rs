@@ -11,8 +11,10 @@
 //! virtual clocks so scheduling proofs run offline and instantly.
 
 use crate::api::client::ENDPOINT_ALL_GAME_DATA;
-use crate::api::error::PollError;
+use crate::api::error::{PollError, TransientReason};
 use crate::api::source::HttpSource;
+use crate::model::live_data::parse_all_game_data;
+use crate::model::snapshot::Snapshot;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// Minimum allowed poll cadence.
@@ -87,12 +89,31 @@ impl Clock for SystemClock {
     }
 }
 
+/// Game-lifecycle state observed by the poller (FSM input of design D4).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Lifecycle {
+    NotInGame,
+    InGame,
+}
+
+/// One completed cycle's outcomes, drained by the app layer (Unit 3).
+#[derive(Debug, Clone, PartialEq)]
+pub enum PollMsg {
+    /// Emitted ONLY when the lifecycle actually changes (spec R3).
+    Lifecycle(Lifecycle),
+    /// A fresh normalized snapshot from a successful poll.
+    Snapshot(Snapshot),
+    /// Transient failure reason; lifecycle and last good snapshot retained.
+    Transient(TransientReason),
+}
+
 /// Sequential poll driver over any [`HttpSource`] + [`Clock`] pair.
 #[derive(Debug)]
 pub struct Poller<S, C> {
     source: S,
     clock: C,
     cadence: Duration,
+    lifecycle: Lifecycle,
 }
 
 impl<S: HttpSource, C: Clock> Poller<S, C> {
@@ -102,6 +123,7 @@ impl<S: HttpSource, C: Clock> Poller<S, C> {
             source,
             clock,
             cadence: clamp_cadence(requested_cadence),
+            lifecycle: Lifecycle::NotInGame,
         }
     }
 
@@ -110,14 +132,53 @@ impl<S: HttpSource, C: Clock> Poller<S, C> {
         self.cadence
     }
 
-    /// Runs exactly one non-overlapping cycle: fetch, then sleep out the
-    /// remaining window relative to this cycle's start.
-    pub fn run_once(&mut self) {
+    /// Runs exactly one non-overlapping cycle and returns its messages.
+    ///
+    /// Classification (design error taxonomy / spec R3):
+    /// - success ⇒ `Snapshot` (+ `Lifecycle(InGame)` on change);
+    ///   malformed JSON ⇒ `Transient(Parse)` with lifecycle retained;
+    /// - connection refused / port unbound ⇒ `Lifecycle(NotInGame)` on change;
+    /// - timeout / TLS / HTTP ⇒ `Transient(reason)`, lifecycle retained.
+    ///
+    /// After emitting, sleeps out the remaining window relative to this
+    /// cycle's start — overdue cycles collapse the sleep to a no-op jump,
+    /// which is what keeps polls strictly non-overlapping.
+    pub fn run_once(&mut self) -> Vec<PollMsg> {
         let started_at = self.clock.now_millis();
-        let _result: Result<String, PollError> =
-            self.source.fetch(ENDPOINT_ALL_GAME_DATA);
+        let mut messages = Vec::with_capacity(2);
+
+        match self.source.fetch(ENDPOINT_ALL_GAME_DATA) {
+            Ok(body) => match parse_all_game_data(&body) {
+                Ok(data) => {
+                    self.transition_to(Lifecycle::InGame, &mut messages);
+                    messages.push(PollMsg::Snapshot(Snapshot::from_live(&data)));
+                }
+                Err(_) => {
+                    // Malformed payload: reported, previous snapshot retained,
+                    // polling continues (poller:R4/S3).
+                    messages.push(PollMsg::Transient(TransientReason::Parse));
+                }
+            },
+            Err(PollError::NotBound(_)) => {
+                // The ONLY failure class that ends a game session (R3/S1,S2).
+                self.transition_to(Lifecycle::NotInGame, &mut messages);
+            }
+            Err(PollError::Transient(reason)) => {
+                // Timeout/TLS/HTTP never end the game (R3/S3).
+                messages.push(PollMsg::Transient(reason));
+            }
+        }
 
         let deadline = started_at.saturating_add(self.cadence.as_millis() as u64);
         self.clock.sleep_until_millis(deadline);
+        messages
+    }
+
+    /// Records a lifecycle change; repeated states emit nothing (R3).
+    fn transition_to(&mut self, next: Lifecycle, messages: &mut Vec<PollMsg>) {
+        if next != self.lifecycle {
+            self.lifecycle = next;
+            messages.push(PollMsg::Lifecycle(next));
+        }
     }
 }
