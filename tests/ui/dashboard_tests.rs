@@ -234,3 +234,61 @@ fn dead_player_without_exposed_timer_shows_unknown_marker_never_a_countdown() {
         "unknown marker required, got: {tag}"
     );
 }
+
+// --- Task 4.4: local-player enhanced panel (ui spec R4/S1, R4/S2) ---
+
+/// The local strip is distinguished by its `LOCAL` label and carries the
+/// exposed currentGold — here the spec scenario value 4350.
+#[test]
+fn local_gold_renders_on_the_local_strip() {
+    let mut snapshot = snapshot_from_fixture("full");
+    let local = snapshot.local.as_mut().expect("local player in fixture");
+    local.current_gold = Some(4350.0);
+
+    let mut app = App::new();
+    app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
+    app.on_msg(PollMsg::Snapshot(snapshot));
+
+    let buffer = draw(&app);
+
+    let strip_y = find_row(&buffer, "LOCAL").expect("LOCAL strip");
+    let strip = row_text(&buffer, strip_y);
+    assert!(strip.contains("Ahri"), "local champion identified: {strip}");
+    assert!(strip.contains("Gold 4350"), "exposed gold verbatim: {strip}");
+
+    // Exclusivity: that gold value appears NOWHERE else in the frame.
+    for y in 0..buffer.area.height {
+        if y != strip_y {
+            assert!(
+                !row_text(&buffer, y).contains("Gold"),
+                "gold token must stay on the LOCAL strip, found on row {y}"
+            );
+        }
+    }
+}
+
+/// Absent local gold degrades to the explicit marker; no other panel ever
+/// displays a gold value.
+#[test]
+fn missing_local_gold_degrades_and_no_enemy_panel_shows_gold() {
+    let mut snapshot = snapshot_from_fixture("full");
+    let local = snapshot.local.as_mut().expect("local player in fixture");
+    local.current_gold = None;
+
+    let mut app = App::new();
+    app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
+    app.on_msg(PollMsg::Snapshot(snapshot));
+
+    let buffer = draw(&app);
+
+    let strip = player_row(&buffer, "LOCAL");
+    assert!(strip.contains("Gold ?"), "explicit placeholder: {strip}");
+
+    for y in 0..buffer.area.height {
+        assert!(!row_text(&buffer, y).contains("Gold 4350"));
+        let text = row_text(&buffer, y);
+        if !text.contains("LOCAL") {
+            assert!(!text.contains("Gold"), "no gold outside the LOCAL strip, row {y}: {text}");
+        }
+    }
+}
