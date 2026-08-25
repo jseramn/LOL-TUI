@@ -174,3 +174,63 @@ fn latest_snapshot_is_reflected_on_the_next_frame() {
     let aatrox = player_row(&second, "TopLaneTitan");
     assert!(aatrox.contains("Lv18"), "latest snapshot must render: {aatrox}");
 }
+
+// --- Task 4.3: per-field degradation (ui spec R3/S2, R3/S3) ---
+
+/// The degraded player in `partial_player.json` omits items, respawnTimer,
+/// and parts of scores (assists, creepScore). Placeholders must appear ONLY
+/// on those absent fields; every other panel stays fully populated.
+#[test]
+fn partial_fields_degrade_explicitly_and_only_where_absent() {
+    let buffer = draw(&live_app_with("partial_player"));
+
+    let kaisa = player_row(&buffer, "KaiSaFan");
+    for token in
+        ["KaiSaFan", "Kai'Sa", "Lv11", "4/5/?", "CS?", "Items: ?", "SummonerHeal+SummonerFlash"]
+    {
+        assert!(kaisa.contains(token), "degraded panel missing {token:?}: {kaisa}");
+    }
+    // She is alive: no death tag may be invented.
+    assert!(!kaisa.contains("DEAD"), "alive panel must not be marked dead: {kaisa}");
+
+    // Every other panel remains fully populated — no placeholder leaks.
+    for name in ["TopLaneTitan", "JungleKing", "MidMage", "HookMaster"] {
+        let row = player_row(&buffer, name);
+        assert!(
+            !row.contains('?'),
+            "intact panel {name} must not contain placeholders: {row}"
+        );
+    }
+    let thresh = player_row(&buffer, "HookMaster");
+    assert!(thresh.contains("Locket of the Iron Solari"), "intact items survive: {thresh}");
+}
+
+/// isDead=true with an exposed timer prints that timer verbatim; with the
+/// timer ABSENT it prints an unknown marker instead of any derived countdown.
+#[test]
+fn dead_player_without_exposed_timer_shows_unknown_marker_never_a_countdown() {
+    // Exposed value first: full.json Lee Sin, DEAD(respawn 12.5).
+    let buffer = draw(&live_app_with("full"));
+    let exposed = player_row(&buffer, "JungleKing");
+    let tag = &exposed[exposed.find("DEAD").expect("death tag")..];
+    assert!(tag.starts_with("DEAD(respawn 12.5)"), "verbatim exposed timer: {tag}");
+
+    // Same player, respawnTimer absent from the payload this time…
+    let mut absent_timer = snapshot_from_fixture("full");
+    let jungle = absent_timer.players.iter_mut().find(|p| p.summoner_name.as_deref() == Some("JungleKing")).expect("JungleKing");
+    assert_eq!(jungle.is_dead, Some(true));
+    jungle.respawn_timer = None;
+
+    let mut app = App::new();
+    app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
+    app.on_msg(PollMsg::Snapshot(absent_timer));
+
+    // …must yield an explicit unknown marker, never a computed number.
+    let degraded = draw(&app);
+    let row = player_row(&degraded, "JungleKing");
+    let tag = &row[row.find("DEAD").expect("death tag")..];
+    assert!(
+        tag.starts_with("DEAD(respawn ?)"),
+        "unknown marker required, got: {tag}"
+    );
+}
