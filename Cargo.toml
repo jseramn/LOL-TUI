@@ -12,4 +12,9 @@ serde_json = "1"
 thiserror = "2"
 
 [dev-dependencies]
+# Untrusted-chain TLS test server (task 2.3) pinned to the same rustls line
+# reqwest uses; ring provider keeps windows-gnu builds toolchain-only.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+# Provenance digest assertion for assets/riotgames.pem (task 2.3).
+sha2 = "0.10"
 rcgen = "0.14"
