@@ -9,24 +9,26 @@
 //! Compliance (design): the respawn value printed here is the exposed
 //! snapshot value verbatim — nothing is derived or counted down locally.
 
+use super::Pen;
+use crate::api::poller::Clock;
 use crate::app::App;
 use crate::model::snapshot::{LocalPlayerSnapshot, PlayerSnapshot, Snapshot, Team};
-use ratatui::layout::Rect;
-use ratatui::{Frame, widgets::Paragraph};
+use ratatui::Frame;
 
 /// Explicit marker for a field the API did not expose. Absence is never
 /// rendered as a fabricated value (ui spec: degradation is per field).
 pub const UNKNOWN: &str = "?";
 
 /// Renders the in-game view: headline plus team-grouped panels for the
-/// latest snapshot. With no snapshot yet (lifecycle arrived first), only
-/// the headline draws — never a panic, whatever the frame size.
-pub fn render(frame: &mut Frame, app: &App) {
+/// latest snapshot, then the event ticker section. With no snapshot yet
+/// (lifecycle arrived first), only the headline draws — never a panic,
+/// whatever the frame size.
+pub fn render<C: Clock>(frame: &mut Frame, app: &App<C>) {
     let area = frame.area();
     if area.is_empty() {
         return;
     }
-    let mut pen = Pen { x: area.x, y: area.y, width: area.width, bottom: area.bottom() };
+    let mut pen = Pen::new(area);
     pen.line("LIVE".to_owned(), frame);
 
     let Some(snapshot) = app.snapshot() else { return };
@@ -51,6 +53,9 @@ fn draw_snapshot(pen: &mut Pen, snapshot: &Snapshot, frame: &mut Frame) {
     if let Some(local) = &snapshot.local {
         pen.line(local_line(local), frame);
     }
+
+    // Objective/kill ticker (ui spec R5) below the panels, same cursor.
+    super::ticker::render(pen, &snapshot.events, frame);
 }
 
 /// Formats the distinguished local-player line:
@@ -82,26 +87,6 @@ fn local_line(local: &LocalPlayerSnapshot) -> String {
         line.push_str(stats.movement_speed.map(|v| v.to_string()).as_deref().unwrap_or(UNKNOWN));
     }
     line
-}
-
-/// One-line vertical cursor that clips at the frame bottom instead of
-/// panicking, so degenerate viewports stay safe by construction.
-struct Pen {
-    x: u16,
-    y: u16,
-    width: u16,
-    bottom: u16,
-}
-
-impl Pen {
-    fn line(&mut self, text: String, frame: &mut Frame) {
-        if self.y >= self.bottom || self.width == 0 {
-            return;
-        }
-        let area = Rect { x: self.x, y: self.y, width: self.width, height: 1 };
-        frame.render_widget(Paragraph::new(text), area);
-        self.y += 1;
-    }
 }
 
 /// Formats one player panel line:

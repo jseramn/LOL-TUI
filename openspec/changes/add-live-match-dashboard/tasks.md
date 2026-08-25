@@ -75,10 +75,10 @@ Every task step marked **Test:** or **Build:** executes these exact strings.
 
 ## Phase 5: Ticker, Standby, Status Line
 
-- [ ] 5.1 RED `tests/ui/ticker_tests.rs`: FirstBlood, TurretKilled, DragonKill{type Chemtech, stolen} listed with participants + exposed EventTime verbatim (ui:R5/S1); zero events → empty-state message, no failure (R5/S2). Run CT → RED.
-- [ ] 5.2 GREEN `src/ui/ticker.rs` rendering the supported event types from the snapshot event list.
-- [ ] 5.3 GREEN `src/ui/standby.rs`: NotInGame → standby view, silent, no error-loop output (ui:R2/S1,S2); NotInGame→InGame message swaps to live view on next drained frame (R2/S3).
-- [ ] 5.4 RED/GREEN `src/ui/status.rs`: `RIOT_NOTICE` constant containing "not endorsed by Riot Games" + lifecycle state + last-update time, persistent in BOTH views (ui:R6/S1); Degraded(reason)/stale-snapshot surfaces as status-line/stale-banner annotation per D4 — rendering of existing FSM health, not a new subsystem (W3). Test: CT green.
+- [x] 5.1 RED `tests/ui/ticker_tests.rs`: FirstBlood, TurretKilled, DragonKill{type Chemtech, stolen} listed with participants + exposed EventTime verbatim (ui:R5/S1); zero events → empty-state message, no failure (R5/S2). Run CT → RED.
+- [x] 5.2 GREEN `src/ui/ticker.rs` rendering the supported event types from the snapshot event list.
+- [x] 5.3 GREEN `src/ui/standby.rs`: NotInGame → standby view, silent, no error-loop output (ui:R2/S1,S2); NotInGame→InGame message swaps to live view on next drained frame (R2/S3).
+- [x] 5.4 RED/GREEN `src/ui/status.rs`: `RIOT_NOTICE` constant containing "not endorsed by Riot Games" + lifecycle state + last-update time, persistent in BOTH views (ui:R6/S1); Degraded(reason)/stale-snapshot surfaces as status-line/stale-banner annotation per D4 — rendering of existing FSM health, not a new subsystem (W3). Test: CT green.
 
 ## Phase 6: Verification & Compliance
 
