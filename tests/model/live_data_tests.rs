@@ -47,12 +47,18 @@ fn full_fixture_parses_completely() {
 
     let spells = ahri.summoner_spells.as_ref().expect("Ahri spells present");
     assert_eq!(
-        spells.summoner_spell_one.as_ref().and_then(|s| s.display_name.as_deref()),
+        spells
+            .summoner_spell_one
+            .as_ref()
+            .and_then(|s| s.display_name.as_deref()),
         Some("SummonerFlash")
     );
     // Ignite's internal id is SummonerDot, exactly as the live client reports.
     assert_eq!(
-        spells.summoner_spell_two.as_ref().and_then(|s| s.display_name.as_deref()),
+        spells
+            .summoner_spell_two
+            .as_ref()
+            .and_then(|s| s.display_name.as_deref()),
         Some("SummonerDot")
     );
 
@@ -90,7 +96,10 @@ fn full_fixture_parses_completely() {
         dragon.extra.get("DragonType").and_then(|v| v.as_str()),
         Some("Chemtech")
     );
-    assert_eq!(dragon.extra.get("Stolen").and_then(|v| v.as_bool()), Some(true));
+    assert_eq!(
+        dragon.extra.get("Stolen").and_then(|v| v.as_bool()),
+        Some(true)
+    );
     assert_eq!(dragon.event_time, Some(512.18));
 }
 
@@ -110,8 +119,14 @@ fn partial_player_degrades_gracefully() {
 
     // Omitted keys stay absent — never defaulted to fabricated values.
     assert!(kaisa.items.is_none(), "omitted items must remain absent");
-    assert!(kaisa.respawn_timer.is_none(), "omitted respawnTimer must remain absent");
-    let scores = kaisa.scores.as_ref().expect("scores object itself was kept");
+    assert!(
+        kaisa.respawn_timer.is_none(),
+        "omitted respawnTimer must remain absent"
+    );
+    let scores = kaisa
+        .scores
+        .as_ref()
+        .expect("scores object itself was kept");
     assert_eq!(scores.kills, Some(4));
     assert_eq!(scores.deaths, Some(5));
     assert!(scores.assists.is_none());
@@ -162,7 +177,10 @@ fn null_and_omitted_fields_are_equivalent() {
 
     let empty_events = parse_all_game_data(EMPTY_EVENTS).expect("empty_events fixture parses");
     let events = empty_events.events.expect("events key explicitly present");
-    assert!(events.is_empty(), "explicit [] must be an empty list, not None");
+    assert!(
+        events.is_empty(),
+        "explicit [] must be an empty list, not None"
+    );
 }
 
 /// poller:R4/S3 — malformed payload produces a reported parse error;

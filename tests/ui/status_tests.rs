@@ -3,9 +3,9 @@
 //! lifecycle state, and the last-update time; degraded FSM health surfaces
 //! as a status-line annotation (design D4/W3), never a new subsystem.
 
+use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 use ratatui::buffer::Buffer;
-use ratatui::Terminal;
 use tui_lol::api::poller::{Lifecycle, PollMsg};
 use tui_lol::app::App;
 use tui_lol::model::live_data::LiveData;
@@ -35,7 +35,9 @@ fn draw(app: &App<FixedClock>) -> Buffer {
 }
 
 fn row_text(buffer: &Buffer, y: u16) -> String {
-    (0..buffer.area.width).map(|x| buffer[(x, y)].symbol()).collect()
+    (0..buffer.area.width)
+        .map(|x| buffer[(x, y)].symbol())
+        .collect()
 }
 
 fn find_row(buffer: &Buffer, needle: &str) -> Option<u16> {
@@ -55,21 +57,34 @@ fn riot_notice_constant_carries_the_mandated_wording() {
 #[test]
 fn notice_and_status_are_visible_in_standby_and_live_views() {
     // Standby: fresh app, nothing received yet.
-    let standby = App::with_clock(FixedClock { millis: STAMP_MILLIS });
+    let standby = App::with_clock(FixedClock {
+        millis: STAMP_MILLIS,
+    });
     let buffer = draw(&standby);
     let notice_y = find_row(&buffer, RIOT_NOTICE).expect("notice visible while standby");
     let status = row_text(&buffer, notice_y);
-    assert!(status.contains("state=standby"), "lifecycle state shown: {status}");
-    assert!(status.contains("updated ?"), "no fabricated update time: {status}");
+    assert!(
+        status.contains("state=standby"),
+        "lifecycle state shown: {status}"
+    );
+    assert!(
+        status.contains("updated ?"),
+        "no fabricated update time: {status}"
+    );
 
     // Live: same frame contract after entering a game with fresh data.
-    let mut live = App::with_clock(FixedClock { millis: STAMP_MILLIS });
+    let mut live = App::with_clock(FixedClock {
+        millis: STAMP_MILLIS,
+    });
     live.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
-    live.on_msg(PollMsg::Snapshot(snapshot_from_fixture("full")));
+    live.on_msg(PollMsg::Snapshot(Box::new(snapshot_from_fixture("full"))));
     let buffer = draw(&live);
     let notice_y = find_row(&buffer, RIOT_NOTICE).expect("notice visible while live");
     let status = row_text(&buffer, notice_y);
-    assert!(status.contains("state=in-game ok"), "lifecycle state shown: {status}");
+    assert!(
+        status.contains("state=in-game ok"),
+        "lifecycle state shown: {status}"
+    );
     assert!(
         status.contains("updated 12:34:56 UTC"),
         "last-update stamp from the injected clock: {status}"
@@ -83,10 +98,14 @@ fn notice_and_status_are_visible_in_standby_and_live_views() {
 /// not a new subsystem.
 #[test]
 fn degraded_health_annotates_the_status_line() {
-    let mut app = App::with_clock(FixedClock { millis: STAMP_MILLIS });
+    let mut app = App::with_clock(FixedClock {
+        millis: STAMP_MILLIS,
+    });
     app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
-    app.on_msg(PollMsg::Snapshot(snapshot_from_fixture("full")));
-    app.on_msg(PollMsg::Transient(tui_lol::api::error::TransientReason::Timeout));
+    app.on_msg(PollMsg::Snapshot(Box::new(snapshot_from_fixture("full"))));
+    app.on_msg(PollMsg::Transient(
+        tui_lol::api::error::TransientReason::Timeout,
+    ));
 
     let buffer = draw(&app);
     let notice_y = find_row(&buffer, RIOT_NOTICE).expect("notice still visible");

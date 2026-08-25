@@ -10,8 +10,7 @@
 use std::sync::mpsc;
 
 use crossterm::event::{
-    Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers, MouseEvent,
-    MouseEventKind,
+    Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers, MouseEvent, MouseEventKind,
 };
 use tui_lol::api::error::TransientReason;
 use tui_lol::api::poller::{Clock, Lifecycle, PollMsg};
@@ -68,7 +67,12 @@ fn starts_in_standby_before_any_poll() {
 fn first_contact_transitions_to_in_game_healthy() {
     // poller:R3/S1 — first successful poll announces InGame.
     let app = live_app();
-    assert_eq!(app.phase(), Phase::InGame { health: Health::Healthy });
+    assert_eq!(
+        app.phase(),
+        Phase::InGame {
+            health: Health::Healthy
+        }
+    );
 }
 
 #[test]
@@ -83,7 +87,12 @@ fn refusal_ends_the_game_back_to_standby() {
 fn repeated_ingame_announcements_change_nothing() {
     let mut app = live_app();
     app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
-    assert_eq!(app.phase(), Phase::InGame { health: Health::Healthy });
+    assert_eq!(
+        app.phase(),
+        Phase::InGame {
+            health: Health::Healthy
+        }
+    );
 }
 
 // --- Transient degradation --------------------------------------------------
@@ -92,12 +101,14 @@ fn repeated_ingame_announcements_change_nothing() {
 fn transient_failure_degrades_but_retains_last_snapshot() {
     // R3/S3 — Timeout/TLS/HTTP never end the game; last good data is kept.
     let mut app = live_app();
-    app.on_msg(PollMsg::Snapshot(snap(&["A"])));
+    app.on_msg(PollMsg::Snapshot(Box::new(snap(&["A"]))));
     app.on_msg(PollMsg::Transient(TransientReason::Tls));
 
     assert_eq!(
         app.phase(),
-        Phase::InGame { health: Health::Degraded(TransientReason::Tls) }
+        Phase::InGame {
+            health: Health::Degraded(TransientReason::Tls)
+        }
     );
     assert_eq!(app.snapshot(), Some(&snap(&["A"])));
 }
@@ -105,11 +116,16 @@ fn transient_failure_degrades_but_retains_last_snapshot() {
 #[test]
 fn fresh_snapshot_after_degradation_restores_health() {
     let mut app = live_app();
-    app.on_msg(PollMsg::Snapshot(snap(&["A"])));
+    app.on_msg(PollMsg::Snapshot(Box::new(snap(&["A"]))));
     app.on_msg(PollMsg::Transient(TransientReason::Timeout));
-    app.on_msg(PollMsg::Snapshot(snap(&["B"])));
+    app.on_msg(PollMsg::Snapshot(Box::new(snap(&["B"]))));
 
-    assert_eq!(app.phase(), Phase::InGame { health: Health::Healthy });
+    assert_eq!(
+        app.phase(),
+        Phase::InGame {
+            health: Health::Healthy
+        }
+    );
     assert_eq!(app.snapshot(), Some(&snap(&["B"])));
 }
 
@@ -128,8 +144,8 @@ fn transient_while_standby_leaves_silent_standby() {
 fn drain_applies_only_the_latest_snapshot_per_frame() {
     let mut app = live_app();
     let (tx, rx) = mpsc::channel();
-    tx.send(PollMsg::Snapshot(snap(&["A"]))).unwrap();
-    tx.send(PollMsg::Snapshot(snap(&["B"]))).unwrap();
+    tx.send(PollMsg::Snapshot(Box::new(snap(&["A"])))).unwrap();
+    tx.send(PollMsg::Snapshot(Box::new(snap(&["B"])))).unwrap();
 
     let consumed = app.drain(&rx);
 
@@ -141,9 +157,9 @@ fn drain_applies_only_the_latest_snapshot_per_frame() {
 fn drain_preserves_lifecycle_messages_between_snapshots() {
     let mut app = live_app();
     let (tx, rx) = mpsc::channel();
-    tx.send(PollMsg::Snapshot(snap(&["A"]))).unwrap();
+    tx.send(PollMsg::Snapshot(Box::new(snap(&["A"])))).unwrap();
     tx.send(PollMsg::Lifecycle(Lifecycle::NotInGame)).unwrap();
-    tx.send(PollMsg::Snapshot(snap(&["B"]))).unwrap();
+    tx.send(PollMsg::Snapshot(Box::new(snap(&["B"])))).unwrap();
 
     let consumed = app.drain(&rx);
 
@@ -160,7 +176,12 @@ fn drain_of_empty_and_disconnected_channels_is_safe() {
 
     drop(tx); // poller thread gone: must not hang or panic
     assert_eq!(app.drain(&rx), 0);
-    assert_eq!(app.phase(), Phase::InGame { health: Health::Healthy });
+    assert_eq!(
+        app.phase(),
+        Phase::InGame {
+            health: Health::Healthy
+        }
+    );
 }
 
 // --- Last-update stamping (status-line input, ui spec R6) -------------------
@@ -180,9 +201,12 @@ impl Clock for FixedClock {
 fn fresh_snapshot_stamps_last_update_from_the_clock() {
     let mut app = App::with_clock(FixedClock(1_724_592_000_123));
     app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
-    assert!(app.last_update_millis().is_none(), "lifecycle-only contact is not an update");
+    assert!(
+        app.last_update_millis().is_none(),
+        "lifecycle-only contact is not an update"
+    );
 
-    app.on_msg(PollMsg::Snapshot(snap(&["A"])));
+    app.on_msg(PollMsg::Snapshot(Box::new(snap(&["A"]))));
     assert_eq!(app.last_update_millis(), Some(1_724_592_000_123));
 }
 
@@ -219,22 +243,37 @@ fn escape_press_quits() {
 
 #[test]
 fn key_release_events_are_ignored() {
-    assert_eq!(classify_event(&key(KeyCode::Char('q'), KeyEventKind::Release)), None);
-    assert_eq!(classify_event(&key(KeyCode::Esc, KeyEventKind::Release)), None);
+    assert_eq!(
+        classify_event(&key(KeyCode::Char('q'), KeyEventKind::Release)),
+        None
+    );
+    assert_eq!(
+        classify_event(&key(KeyCode::Esc, KeyEventKind::Release)),
+        None
+    );
 }
 
 #[test]
 fn keys_other_than_the_quit_keys_do_not_quit() {
-    assert_eq!(classify_event(&key(KeyCode::Char('a'), KeyEventKind::Press)), None);
+    assert_eq!(
+        classify_event(&key(KeyCode::Char('a'), KeyEventKind::Press)),
+        None
+    );
     // The spec contract is lowercase `q` only.
-    assert_eq!(classify_event(&key(KeyCode::Char('Q'), KeyEventKind::Press)), None);
+    assert_eq!(
+        classify_event(&key(KeyCode::Char('Q'), KeyEventKind::Press)),
+        None
+    );
 }
 
 #[test]
 fn resize_events_carry_the_new_bounds() {
     assert_eq!(
         classify_event(&Event::Resize(80, 24)),
-        Some(ShellAction::Resize { width: 80, height: 24 })
+        Some(ShellAction::Resize {
+            width: 80,
+            height: 24
+        })
     );
 }
 

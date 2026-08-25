@@ -128,8 +128,7 @@ fn run() -> io::Result<()> {
         for action in poll_actions(FRAME_POLL)? {
             match action {
                 ShellAction::Quit => return Ok(()),
-                ShellAction::Resize { .. } => {}
-                // No explicit work: the draw below autoresizes next frame.
+                ShellAction::Resize { .. } => {} // No explicit work: the draw below autoresizes next frame.
             }
         }
 

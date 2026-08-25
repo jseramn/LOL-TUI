@@ -93,10 +93,19 @@ pub struct GameInfo {
 /// Times are the exposed `EventTime` values verbatim — never recomputed.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum GameEvent {
-    GameStart { time: Option<f64> },
-    MinionsSpawning { time: Option<f64> },
-    FirstBrick { time: Option<f64> },
-    FirstBlood { recipient: Option<String>, time: Option<f64> },
+    GameStart {
+        time: Option<f64>,
+    },
+    MinionsSpawning {
+        time: Option<f64>,
+    },
+    FirstBrick {
+        time: Option<f64>,
+    },
+    FirstBlood {
+        recipient: Option<String>,
+        time: Option<f64>,
+    },
     ChampionKill {
         killer: Option<String>,
         victim: Option<String>,
@@ -105,7 +114,10 @@ pub enum GameEvent {
         assisters: Vec<String>,
         time: Option<f64>,
     },
-    Multikill { kill_streak: Option<u32>, time: Option<f64> },
+    Multikill {
+        kill_streak: Option<u32>,
+        time: Option<f64>,
+    },
     TurretKilled {
         killer: Option<String>,
         turret: Option<String>,
@@ -118,13 +130,33 @@ pub enum GameEvent {
         stolen: Option<bool>,
         time: Option<f64>,
     },
-    HeraldKill { killer: Option<String>, stolen: Option<bool>, time: Option<f64> },
-    BaronKill { killer: Option<String>, stolen: Option<bool>, time: Option<f64> },
-    InhibKilled { killer: Option<String>, time: Option<f64> },
-    Ace { acing_team: Option<String>, time: Option<f64> },
-    GameEnd { result: Option<String>, time: Option<f64> },
+    HeraldKill {
+        killer: Option<String>,
+        stolen: Option<bool>,
+        time: Option<f64>,
+    },
+    BaronKill {
+        killer: Option<String>,
+        stolen: Option<bool>,
+        time: Option<f64>,
+    },
+    InhibKilled {
+        killer: Option<String>,
+        time: Option<f64>,
+    },
+    Ace {
+        acing_team: Option<String>,
+        time: Option<f64>,
+    },
+    GameEnd {
+        result: Option<String>,
+        time: Option<f64>,
+    },
     /// Any event type not in the supported set, preserved with its name.
-    Other { name: Option<String>, time: Option<f64> },
+    Other {
+        name: Option<String>,
+        time: Option<f64>,
+    },
 }
 
 impl From<&RawEvent> for GameEvent {
@@ -214,7 +246,11 @@ fn str_list(extra: &BTreeMap<String, serde_json::Value>, key: &str) -> Vec<Strin
     extra
         .get(key)
         .and_then(serde_json::Value::as_array)
-        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(str::to_owned)).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(str::to_owned))
+                .collect()
+        })
         .unwrap_or_default()
 }
 
@@ -242,13 +278,22 @@ impl Snapshot {
                 .iter()
                 .map(PlayerSnapshot::from_player)
                 .collect(),
-            local: data.active_player.as_ref().map(LocalPlayerSnapshot::from_local),
+            local: data
+                .active_player
+                .as_ref()
+                .map(LocalPlayerSnapshot::from_local),
             game: data.game_stats.as_ref().map(|g| GameInfo {
                 game_mode: g.game_mode.clone(),
                 game_time: g.game_time,
                 map_name: g.map_name.clone(),
             }),
-            events: data.events.as_deref().unwrap_or(&[]).iter().map(GameEvent::from).collect(),
+            events: data
+                .events
+                .as_deref()
+                .unwrap_or(&[])
+                .iter()
+                .map(GameEvent::from)
+                .collect(),
         }
     }
 }

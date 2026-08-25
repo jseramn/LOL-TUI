@@ -18,25 +18,34 @@ fn live_app() -> App {
 
 /// Flattens one buffer row into a string for whole-line assertions.
 fn row_text(buffer: &Buffer, y: u16) -> String {
-    (0..buffer.area.width).map(|x| buffer[(x, y)].symbol()).collect()
+    (0..buffer.area.width)
+        .map(|x| buffer[(x, y)].symbol())
+        .collect()
 }
 
 #[test]
 fn shrink_resize_redraws_within_new_bounds_without_panicking() {
     let app = live_app();
     let mut terminal = Terminal::new(TestBackend::new(100, 30)).expect("test backend");
-    terminal.draw(|frame| ui::render(frame, &app)).expect("initial frame");
+    terminal
+        .draw(|frame| ui::render(frame, &app))
+        .expect("initial frame");
     // Simulate the user shrinking the terminal window…
     terminal.backend_mut().resize(60, 20);
 
     // …the NEXT drawn frame must exist entirely within the new bounds.
-    let frame = terminal.draw(|f| ui::render(f, &app)).expect("post-resize frame");
+    let frame = terminal
+        .draw(|f| ui::render(f, &app))
+        .expect("post-resize frame");
     assert_eq!(frame.area, Rect::new(0, 0, 60, 20));
 
     let buffer = frame.buffer;
     assert_eq!((buffer.area.width, buffer.area.height), (60, 20));
     // Real content landed at the origin — not an empty cleared buffer.
-    assert!(row_text(buffer, 0).trim_end().len() > 0, "headline must be present");
+    assert!(
+        !row_text(buffer, 0).trim_end().is_empty(),
+        "headline must be present"
+    );
 }
 
 #[test]
@@ -45,7 +54,9 @@ fn shrunk_standby_view_keeps_its_text_inside_the_visible_area() {
     let mut terminal = Terminal::new(TestBackend::new(80, 24)).expect("test backend");
 
     terminal.backend_mut().resize(40, 10);
-    let frame = terminal.draw(|f| ui::render(f, &app)).expect("standby frame");
+    let frame = terminal
+        .draw(|f| ui::render(f, &app))
+        .expect("standby frame");
     let buffer = frame.buffer;
 
     let headline = row_text(buffer, 0).trim_end().to_owned();
@@ -62,10 +73,14 @@ fn extreme_small_viewport_still_renders_both_phases_without_panics() {
     let standby = App::new();
     let mut terminal = Terminal::new(TestBackend::new(8, 2)).expect("test backend");
 
-    let frame = terminal.draw(|f| ui::render(f, &standby)).expect("tiny standby frame");
+    let frame = terminal
+        .draw(|f| ui::render(f, &standby))
+        .expect("tiny standby frame");
     assert_eq!(row_text(frame.buffer, 0).chars().next(), Some('W'));
 
     let live = live_app();
-    let frame = terminal.draw(|f| ui::render(f, &live)).expect("tiny live frame");
+    let frame = terminal
+        .draw(|f| ui::render(f, &live))
+        .expect("tiny live frame");
     assert_eq!(row_text(frame.buffer, 0).chars().next(), Some('L'));
 }

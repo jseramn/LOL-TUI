@@ -97,12 +97,15 @@ pub enum Lifecycle {
 }
 
 /// One completed cycle's outcomes, drained by the app layer (Unit 3).
+///
+/// [`Snapshot`] is boxed so the channel payload stays small regardless of
+/// roster size; consumers deref transparently.
 #[derive(Debug, Clone, PartialEq)]
 pub enum PollMsg {
     /// Emitted ONLY when the lifecycle actually changes (spec R3).
     Lifecycle(Lifecycle),
     /// A fresh normalized snapshot from a successful poll.
-    Snapshot(Snapshot),
+    Snapshot(Box<Snapshot>),
     /// Transient failure reason; lifecycle and last good snapshot retained.
     Transient(TransientReason),
 }
@@ -151,7 +154,7 @@ impl<S: HttpSource, C: Clock> Poller<S, C> {
             Ok(body) => match parse_all_game_data(&body) {
                 Ok(data) => {
                     self.transition_to(Lifecycle::InGame, &mut messages);
-                    messages.push(PollMsg::Snapshot(Snapshot::from_live(&data)));
+                    messages.push(PollMsg::Snapshot(Box::new(Snapshot::from_live(&data))));
                 }
                 Err(_) => {
                     // Malformed payload: reported, previous snapshot retained,

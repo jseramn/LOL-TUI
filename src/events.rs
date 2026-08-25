@@ -25,13 +25,15 @@ pub enum ShellAction {
 /// deliver Release events and acting on those would double-fire.
 pub fn classify_event(event: &Event) -> Option<ShellAction> {
     match event {
-        Event::Key(KeyEvent { code, kind: KeyEventKind::Press, .. }) => match code {
-            KeyCode::Char('q') | KeyCode::Esc => Some(ShellAction::Quit),
-            _ => None,
-        },
-        Event::Resize(width, height) => {
-            Some(ShellAction::Resize { width: *width, height: *height })
-        }
+        Event::Key(KeyEvent {
+            code: KeyCode::Char('q') | KeyCode::Esc,
+            kind: KeyEventKind::Press,
+            ..
+        }) => Some(ShellAction::Quit),
+        Event::Resize(width, height) => Some(ShellAction::Resize {
+            width: *width,
+            height: *height,
+        }),
         _ => None,
     }
 }
@@ -48,13 +50,9 @@ pub fn poll_actions(timeout: Duration) -> io::Result<Vec<ShellAction>> {
         return Ok(actions);
     }
     loop {
-        match event::read() {
-            Ok(event) => {
-                if let Some(action) = classify_event(&event) {
-                    actions.push(action);
-                }
-            }
-            Err(err) => return Err(err),
+        let event = event::read()?;
+        if let Some(action) = classify_event(&event) {
+            actions.push(action);
         }
         // Stop as soon as no more events are immediately pending so the
         // render loop keeps its per-frame cadence.

@@ -5,9 +5,9 @@
 //! disconnect falls back without crashing, reconnect restores the live
 //! view on the next drained frame.
 
+use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 use ratatui::buffer::Buffer;
-use ratatui::Terminal;
 use tui_lol::api::poller::{Lifecycle, PollMsg};
 use tui_lol::app::App;
 use tui_lol::model::live_data::LiveData;
@@ -33,7 +33,9 @@ fn draw(app: &App<FixedClock>) -> Buffer {
 }
 
 fn row_text(buffer: &Buffer, y: u16) -> String {
-    (0..buffer.area.width).map(|x| buffer[(x, y)].symbol()).collect()
+    (0..buffer.area.width)
+        .map(|x| buffer[(x, y)].symbol())
+        .collect()
 }
 
 fn find_row(buffer: &Buffer, needle: &str) -> Option<u16> {
@@ -52,8 +54,14 @@ fn startup_outside_a_game_shows_silent_standby() {
 
     for scan in 0..buffer.area.height {
         let text = row_text(&buffer, scan);
-        assert!(!text.contains("error"), "no error output while idle: {text}");
-        assert!(!text.contains("DEGRADED"), "no degradation noise while idle: {text}");
+        assert!(
+            !text.contains("error"),
+            "no error output while idle: {text}"
+        );
+        assert!(
+            !text.contains("DEGRADED"),
+            "no degradation noise while idle: {text}"
+        );
     }
 }
 
@@ -63,7 +71,7 @@ fn startup_outside_a_game_shows_silent_standby() {
 fn mid_game_disconnect_falls_back_to_standby() {
     let mut app = App::with_clock(FixedClock { millis: 0 });
     app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
-    app.on_msg(PollMsg::Snapshot(snapshot_from_fixture("full")));
+    app.on_msg(PollMsg::Snapshot(Box::new(snapshot_from_fixture("full"))));
     let live = draw(&app);
     assert!(find_row(&live, "Team ORDER").is_some(), "live view was up");
 
@@ -74,7 +82,10 @@ fn mid_game_disconnect_falls_back_to_standby() {
         find_row(&standby, "Waiting for a live game").is_some(),
         "standby view restored"
     );
-    assert!(find_row(&standby, "Team ORDER").is_none(), "no live panels linger");
+    assert!(
+        find_row(&standby, "Team ORDER").is_none(),
+        "no live panels linger"
+    );
     assert!(find_row(&standby, "EVENTS").is_none(), "no ticker lingers");
 }
 
@@ -86,7 +97,7 @@ fn reconnect_returns_to_the_live_view_on_the_next_frame() {
     app.on_msg(PollMsg::Lifecycle(Lifecycle::NotInGame));
 
     app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
-    app.on_msg(PollMsg::Snapshot(snapshot_from_fixture("full")));
+    app.on_msg(PollMsg::Snapshot(Box::new(snapshot_from_fixture("full"))));
 
     let live = draw(&app);
     assert!(find_row(&live, "LIVE").is_some(), "live headline back");

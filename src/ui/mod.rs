@@ -42,14 +42,24 @@ pub(crate) struct Pen {
 
 impl Pen {
     pub(crate) fn new(area: Rect) -> Self {
-        Self { x: area.x, y: area.y, width: area.width, bottom: area.bottom() }
+        Self {
+            x: area.x,
+            y: area.y,
+            width: area.width,
+            bottom: area.bottom(),
+        }
     }
 
     pub(crate) fn line(&mut self, text: String, frame: &mut Frame) {
         if self.y >= self.bottom || self.width == 0 {
             return;
         }
-        let area = Rect { x: self.x, y: self.y, width: self.width, height: 1 };
+        let area = Rect {
+            x: self.x,
+            y: self.y,
+            width: self.width,
+            height: 1,
+        };
         frame.render_widget(Paragraph::new(text), area);
         self.y += 1;
     }

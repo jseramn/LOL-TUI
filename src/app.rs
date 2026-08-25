@@ -17,7 +17,7 @@
 use crate::api::error::TransientReason;
 use crate::api::poller::{Clock, Lifecycle, PollMsg, SystemClock};
 use crate::model::snapshot::Snapshot;
-use std::sync::mpsc::{Receiver, TryRecvError};
+use std::sync::mpsc::Receiver;
 
 /// Health annotation inside [`Phase::InGame`] (design D4 — degradation is
 /// never a standby transition).
@@ -57,10 +57,21 @@ impl App<SystemClock> {
     }
 }
 
+impl Default for App<SystemClock> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<C: Clock> App<C> {
     /// Test/alternative-clock constructor.
     pub fn with_clock(clock: C) -> Self {
-        Self { clock, phase: Phase::NotInGame, snapshot: None, last_update_millis: None }
+        Self {
+            clock,
+            phase: Phase::NotInGame,
+            snapshot: None,
+            last_update_millis: None,
+        }
     }
 
     /// Current lifecycle phase for view dispatch.
@@ -86,14 +97,16 @@ impl<C: Clock> App<C> {
     pub fn on_msg(&mut self, msg: PollMsg) {
         match msg {
             PollMsg::Lifecycle(Lifecycle::InGame) => {
-                self.phase = Phase::InGame { health: Health::Healthy };
+                self.phase = Phase::InGame {
+                    health: Health::Healthy,
+                };
             }
             // Connection refused / port unbound is the ONLY game-ender.
             PollMsg::Lifecycle(Lifecycle::NotInGame) => {
                 self.phase = Phase::NotInGame;
             }
             PollMsg::Snapshot(snapshot) => {
-                self.snapshot = Some(snapshot);
+                self.snapshot = Some(*snapshot);
                 self.last_update_millis = Some(self.clock.now_millis());
                 // Fresh data clears staleness, but never resurrects a game
                 // that NotBound already ended.
@@ -119,11 +132,8 @@ impl<C: Clock> App<C> {
     /// and then simply yields zero forever — the shell keeps rendering.
     pub fn drain(&mut self, rx: &Receiver<PollMsg>) -> usize {
         let mut buffered = Vec::new();
-        loop {
-            match rx.try_recv() {
-                Ok(msg) => buffered.push(msg),
-                Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
-            }
+        while let Ok(msg) = rx.try_recv() {
+            buffered.push(msg);
         }
         let consumed = buffered.len();
         for msg in coalesce(buffered) {
@@ -138,8 +148,8 @@ impl<C: Clock> App<C> {
 fn coalesce(messages: Vec<PollMsg>) -> Vec<PollMsg> {
     let mut kept: Vec<PollMsg> = Vec::with_capacity(messages.len());
     for msg in messages {
-        let replaces_snapshot =
-            matches!(msg, PollMsg::Snapshot(_)) && matches!(kept.last(), Some(PollMsg::Snapshot(_)));
+        let replaces_snapshot = matches!(msg, PollMsg::Snapshot(_))
+            && matches!(kept.last(), Some(PollMsg::Snapshot(_)));
         if replaces_snapshot {
             *kept.last_mut().expect("just matched Some(_)") = msg;
         } else {

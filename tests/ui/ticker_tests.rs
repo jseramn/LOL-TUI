@@ -6,9 +6,9 @@
 //! Snapshots come straight from the offline fixture corpus (design D5);
 //! rendering is asserted through ratatui [`TestBackend`] buffers.
 
+use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 use ratatui::buffer::Buffer;
-use ratatui::Terminal;
 use tui_lol::api::poller::{Lifecycle, PollMsg};
 use tui_lol::app::App;
 use tui_lol::model::live_data::LiveData;
@@ -28,7 +28,7 @@ fn snapshot_from_fixture(name: &str) -> Snapshot {
 fn live_app_with(fixture: &str) -> App {
     let mut app = App::new();
     app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
-    app.on_msg(PollMsg::Snapshot(snapshot_from_fixture(fixture)));
+    app.on_msg(PollMsg::Snapshot(Box::new(snapshot_from_fixture(fixture))));
     app
 }
 
@@ -40,16 +40,18 @@ fn draw(app: &App) -> Buffer {
 
 /// Flattens one buffer row into a string for whole-line assertions.
 fn row_text(buffer: &Buffer, y: u16) -> String {
-    (0..buffer.area.width).map(|x| buffer[(x, y)].symbol()).collect()
+    (0..buffer.area.width)
+        .map(|x| buffer[(x, y)].symbol())
+        .collect()
 }
 
 fn find_row(buffer: &Buffer, needle: &str) -> Option<u16> {
     (0..buffer.area.height).find(|&y| row_text(buffer, y).contains(needle))
 }
 
-fn require_row<'a>(buffer: &'a Buffer, needle: &str) -> String {
-    let y = find_row(buffer, needle)
-        .unwrap_or_else(|| panic!("row containing {needle:?} must exist"));
+fn require_row(buffer: &Buffer, needle: &str) -> String {
+    let y =
+        find_row(buffer, needle).unwrap_or_else(|| panic!("row containing {needle:?} must exist"));
     row_text(buffer, y)
 }
 
@@ -64,7 +66,10 @@ fn ticker_lists_events_with_participants_and_exposed_times() {
 
     // FirstBlood with its recipient and exposed time 182.44.
     let first_blood = require_row(&buffer, "@182.44 FirstBlood");
-    assert!(first_blood.contains("Order"), "recipient as exposed: {first_blood}");
+    assert!(
+        first_blood.contains("Order"),
+        "recipient as exposed: {first_blood}"
+    );
 
     // TurretKilled with killer, structure name, and exposed time 703.42.
     let turret = require_row(&buffer, "@703.42 TurretKilled");
@@ -89,9 +94,11 @@ fn ticker_section_sits_below_the_local_strip() {
     let events_y = find_row(&buffer, "EVENTS").expect("EVENTS section header");
     assert!(events_y > local_y, "ticker belongs under the panels");
 
-    let first_event_y =
-        find_row(&buffer, "@0.046 GameStart").expect("first fixture event listed");
-    assert!(first_event_y > events_y, "event lines follow the section header");
+    let first_event_y = find_row(&buffer, "@0.046 GameStart").expect("first fixture event listed");
+    assert!(
+        first_event_y > events_y,
+        "event lines follow the section header"
+    );
 }
 
 // --- Task 5.1 / ui spec R5/S2: zero events degrade to an empty state ---

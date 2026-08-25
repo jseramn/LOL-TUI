@@ -25,7 +25,12 @@ pub(crate) fn render<C: Clock>(frame: &mut Frame, app: &App<C>) {
     if area.is_empty() {
         return;
     }
-    let row = Rect { x: area.x, y: area.bottom() - 1, width: area.width, height: 1 };
+    let row = Rect {
+        x: area.x,
+        y: area.bottom() - 1,
+        width: area.width,
+        height: 1,
+    };
     frame.render_widget(Paragraph::new(status_text(app)), row);
 }
 
