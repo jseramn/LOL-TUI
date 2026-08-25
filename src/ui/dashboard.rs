@@ -31,14 +31,19 @@ pub fn render<C: Clock>(frame: &mut Frame, app: &App<C>) {
     let mut pen = Pen::new(area);
     pen.line("LIVE".to_owned(), frame);
 
-    let Some(snapshot) = app.snapshot() else { return };
+    let Some(snapshot) = app.snapshot() else {
+        return;
+    };
     draw_snapshot(&mut pen, snapshot, frame);
 }
 
 fn draw_snapshot(pen: &mut Pen, snapshot: &Snapshot, frame: &mut Frame) {
     for (header, team) in [("Team ORDER", Team::Order), ("Team CHAOS", Team::Chaos)] {
-        let members: Vec<&PlayerSnapshot> =
-            snapshot.players.iter().filter(|p| p.team == Some(team)).collect();
+        let members: Vec<&PlayerSnapshot> = snapshot
+            .players
+            .iter()
+            .filter(|p| p.team == Some(team))
+            .collect();
         if members.is_empty() {
             continue;
         }
@@ -69,22 +74,64 @@ fn local_line(local: &LocalPlayerSnapshot) -> String {
     push_part(&mut line, local.champion.as_deref());
 
     line.push_str(" Lv");
-    line.push_str(local.level.map(|l| l.to_string()).as_deref().unwrap_or(UNKNOWN));
+    line.push_str(
+        local
+            .level
+            .map(|l| l.to_string())
+            .as_deref()
+            .unwrap_or(UNKNOWN),
+    );
 
     line.push_str(" Gold ");
-    line.push_str(local.current_gold.map(|g| g.to_string()).as_deref().unwrap_or(UNKNOWN));
+    line.push_str(
+        local
+            .current_gold
+            .map(|g| g.to_string())
+            .as_deref()
+            .unwrap_or(UNKNOWN),
+    );
 
     if let Some(stats) = &local.stats {
         line.push_str(" | HP ");
-        line.push_str(stats.current_health.map(|v| v.to_string()).as_deref().unwrap_or(UNKNOWN));
+        line.push_str(
+            stats
+                .current_health
+                .map(|v| v.to_string())
+                .as_deref()
+                .unwrap_or(UNKNOWN),
+        );
         line.push('/');
-        line.push_str(stats.max_health.map(|v| v.to_string()).as_deref().unwrap_or(UNKNOWN));
+        line.push_str(
+            stats
+                .max_health
+                .map(|v| v.to_string())
+                .as_deref()
+                .unwrap_or(UNKNOWN),
+        );
         line.push_str(" Power ");
-        line.push_str(stats.power.map(|v| v.to_string()).as_deref().unwrap_or(UNKNOWN));
+        line.push_str(
+            stats
+                .power
+                .map(|v| v.to_string())
+                .as_deref()
+                .unwrap_or(UNKNOWN),
+        );
         line.push('/');
-        line.push_str(stats.power_max.map(|v| v.to_string()).as_deref().unwrap_or(UNKNOWN));
+        line.push_str(
+            stats
+                .power_max
+                .map(|v| v.to_string())
+                .as_deref()
+                .unwrap_or(UNKNOWN),
+        );
         line.push_str(" MS ");
-        line.push_str(stats.movement_speed.map(|v| v.to_string()).as_deref().unwrap_or(UNKNOWN));
+        line.push_str(
+            stats
+                .movement_speed
+                .map(|v| v.to_string())
+                .as_deref()
+                .unwrap_or(UNKNOWN),
+        );
     }
     line
 }
@@ -114,7 +161,12 @@ fn player_line(p: &PlayerSnapshot) -> String {
     line.push_str(&num_marker(p.assists));
 
     line.push_str(" CS");
-    line.push_str(p.creep_score.map(|cs| cs.to_string()).as_deref().unwrap_or(UNKNOWN));
+    line.push_str(
+        p.creep_score
+            .map(|cs| cs.to_string())
+            .as_deref()
+            .unwrap_or(UNKNOWN),
+    );
 
     line.push(' ');
     line.push_str(p.spell_one.as_deref().unwrap_or(UNKNOWN));
@@ -160,5 +212,7 @@ fn push_part(line: &mut String, part: Option<&str>) {
 }
 
 fn num_marker(value: Option<u32>) -> String {
-    value.map(|v| v.to_string()).unwrap_or_else(|| UNKNOWN.to_owned())
+    value
+        .map(|v| v.to_string())
+        .unwrap_or_else(|| UNKNOWN.to_owned())
 }

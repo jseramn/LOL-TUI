@@ -29,7 +29,10 @@ fn snapshot_normalizes_full_fixture() {
         .find(|p| p.summoner_name.as_deref() == Some("MidMage"))
         .expect("local player present in roster");
     assert_eq!(ahri.champion.as_deref(), Some("Ahri"));
-    assert_eq!(ahri.team.map(|t| t as u8), Some(tui_lol::model::snapshot::Team::Order as u8));
+    assert_eq!(
+        ahri.team.map(|t| t as u8),
+        Some(tui_lol::model::snapshot::Team::Order as u8)
+    );
     assert_eq!(ahri.position.as_deref(), Some("MIDDLE"));
     assert_eq!(ahri.level, Some(12));
     assert_eq!(ahri.kills, Some(6));
@@ -71,21 +74,25 @@ fn snapshot_normalizes_full_fixture() {
     assert_eq!(stats.max_health, Some(2015.0));
 
     assert_eq!(snap.events.len(), 9);
-    let has_first_blood = snap.events.iter().any(|e| matches!(
-        e,
-        GameEvent::FirstBlood { recipient: Some(r), .. } if r == "Order"
-    ));
+    let has_first_blood = snap.events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::FirstBlood { recipient: Some(r), .. } if r == "Order"
+        )
+    });
     assert!(has_first_blood, "FirstBlood with Recipient expected");
     let has_dragon = snap.events.iter().any(|e| matches!(
         e,
         GameEvent::DragonKill { dragon_type: Some(dt), stolen: Some(true), .. } if dt == "Chemtech"
     ));
     assert!(has_dragon, "stolen Chemtech DragonKill expected");
-    let has_turret = snap.events.iter().any(|e| matches!(
-        e,
-        GameEvent::TurretKilled { turret: Some(t), assisters, .. }
-            if t == "Turret_T1_C_03" && assisters.len() == 2
-    ));
+    let has_turret = snap.events.iter().any(|e| {
+        matches!(
+            e,
+            GameEvent::TurretKilled { turret: Some(t), assisters, .. }
+                if t == "Turret_T1_C_03" && assisters.len() == 2
+        )
+    });
     assert!(has_turret, "TurretKilled with two assisters expected");
 }
 

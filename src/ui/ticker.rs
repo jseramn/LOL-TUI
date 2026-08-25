@@ -7,8 +7,8 @@
 //! An empty event list renders an explicit empty-state message instead of
 //! failing.
 
-use super::dashboard::UNKNOWN;
 use super::Pen;
+use super::dashboard::UNKNOWN;
 use crate::model::snapshot::GameEvent;
 use ratatui::Frame;
 
@@ -53,7 +53,12 @@ fn event_line(event: &GameEvent) -> String {
             line.push_str("FirstBlood recipient ");
             push_opt(&mut line, recipient.as_deref());
         }
-        GameEvent::ChampionKill { killer, victim, assisters, time } => {
+        GameEvent::ChampionKill {
+            killer,
+            victim,
+            assisters,
+            time,
+        } => {
             push_time(&mut line, *time);
             line.push_str("ChampionKill ");
             push_opt(&mut line, killer.as_deref());
@@ -69,7 +74,12 @@ fn event_line(event: &GameEvent) -> String {
                 None => line.push_str(UNKNOWN),
             }
         }
-        GameEvent::TurretKilled { killer, turret, assisters, time } => {
+        GameEvent::TurretKilled {
+            killer,
+            turret,
+            assisters,
+            time,
+        } => {
             push_time(&mut line, *time);
             line.push_str("TurretKilled ");
             push_opt(&mut line, killer.as_deref());
@@ -77,7 +87,12 @@ fn event_line(event: &GameEvent) -> String {
             push_opt(&mut line, turret.as_deref());
             push_assisters(&mut line, assisters);
         }
-        GameEvent::DragonKill { dragon_type, killer, stolen, time } => {
+        GameEvent::DragonKill {
+            dragon_type,
+            killer,
+            stolen,
+            time,
+        } => {
             push_time(&mut line, *time);
             line.push_str("DragonKill ");
             push_opt(&mut line, dragon_type.as_deref());
@@ -85,13 +100,21 @@ fn event_line(event: &GameEvent) -> String {
             push_opt(&mut line, killer.as_deref());
             push_stolen(&mut line, *stolen);
         }
-        GameEvent::HeraldKill { killer, stolen, time } => {
+        GameEvent::HeraldKill {
+            killer,
+            stolen,
+            time,
+        } => {
             push_time(&mut line, *time);
             line.push_str("HeraldKill slain by ");
             push_opt(&mut line, killer.as_deref());
             push_stolen(&mut line, *stolen);
         }
-        GameEvent::BaronKill { killer, stolen, time } => {
+        GameEvent::BaronKill {
+            killer,
+            stolen,
+            time,
+        } => {
             push_time(&mut line, *time);
             line.push_str("BaronKill slain by ");
             push_opt(&mut line, killer.as_deref());

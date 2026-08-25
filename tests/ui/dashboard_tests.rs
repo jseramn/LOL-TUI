@@ -8,9 +8,9 @@
 //! UI tests are network-free); rendering is asserted through ratatui
 //! [`TestBackend`] buffers.
 
+use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 use ratatui::buffer::Buffer;
-use ratatui::Terminal;
 use tui_lol::api::poller::{Lifecycle, PollMsg};
 use tui_lol::app::App;
 use tui_lol::model::live_data::LiveData;
@@ -31,7 +31,7 @@ fn snapshot_from_fixture(name: &str) -> Snapshot {
 fn live_app_with(fixture: &str) -> App {
     let mut app = App::new();
     app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
-    app.on_msg(PollMsg::Snapshot(snapshot_from_fixture(fixture)));
+    app.on_msg(PollMsg::Snapshot(Box::new(snapshot_from_fixture(fixture))));
     app
 }
 
@@ -43,7 +43,9 @@ fn draw(app: &App) -> Buffer {
 
 /// Flattens one buffer row into a string for whole-line assertions.
 fn row_text(buffer: &Buffer, y: u16) -> String {
-    (0..buffer.area.width).map(|x| buffer[(x, y)].symbol()).collect()
+    (0..buffer.area.width)
+        .map(|x| buffer[(x, y)].symbol())
+        .collect()
 }
 
 fn find_row(buffer: &Buffer, needle: &str) -> Option<u16> {
@@ -51,7 +53,9 @@ fn find_row(buffer: &Buffer, needle: &str) -> Option<u16> {
 }
 
 fn rows_containing(buffer: &Buffer, needle: &str) -> Vec<u16> {
-    (0..buffer.area.height).filter(|&y| row_text(buffer, y).contains(needle)).collect()
+    (0..buffer.area.height)
+        .filter(|&y| row_text(buffer, y).contains(needle))
+        .collect()
 }
 
 /// Rows matching `needle` excluding the local-player strip (whose label is
@@ -73,10 +77,20 @@ fn player_row(buffer: &Buffer, name: &str) -> String {
     row_text(buffer, y)
 }
 
-const ORDER_NAMES: [&str; 5] =
-    ["TopLaneTitan", "JungleKing", "MidMage", "ADCarryMain", "SupportSage"];
-const CHAOS_NAMES: [&str; 5] =
-    ["TopGap", "GravesMain", "SyndraGod", "KaiSaFan", "HookMaster"];
+const ORDER_NAMES: [&str; 5] = [
+    "TopLaneTitan",
+    "JungleKing",
+    "MidMage",
+    "ADCarryMain",
+    "SupportSage",
+];
+const CHAOS_NAMES: [&str; 5] = [
+    "TopGap",
+    "GravesMain",
+    "SyndraGod",
+    "KaiSaFan",
+    "HookMaster",
+];
 
 #[test]
 fn full_snapshot_renders_all_ten_panels_exactly_once() {
@@ -86,7 +100,9 @@ fn full_snapshot_renders_all_ten_panels_exactly_once() {
     // is scoped to the rows above the EVENTS header.
     let events_y = find_row(&buffer, "EVENTS").expect("EVENTS header");
     for name in ORDER_NAMES.into_iter().chain(CHAOS_NAMES) {
-        let rows: Vec<u16> = (0..events_y).filter(|&y| row_text(&buffer, y).contains(name)).collect();
+        let rows: Vec<u16> = (0..events_y)
+            .filter(|&y| row_text(&buffer, y).contains(name))
+            .collect();
         assert_eq!(rows.len(), 1, "{name} must appear on exactly one panel row");
     }
 }
@@ -101,7 +117,10 @@ fn panels_are_grouped_by_team_order_then_chaos() {
 
     for name in ORDER_NAMES {
         let y = find_row(&buffer, name).expect(name);
-        assert!(order_header < y && y < chaos_header, "{name} must sit inside the ORDER block");
+        assert!(
+            order_header < y && y < chaos_header,
+            "{name} must sit inside the ORDER block"
+        );
     }
     for name in CHAOS_NAMES {
         let y = find_row(&buffer, name).expect(name);
@@ -129,30 +148,36 @@ fn every_panel_shows_its_exposed_fields() {
         "Long Sword",
         "Warding Totem Trinket",
     ] {
-        assert!(aatrox.contains(token), "Aatrox panel missing {token:?}: {aatrox}");
+        assert!(
+            aatrox.contains(token),
+            "Aatrox panel missing {token:?}: {aatrox}"
+        );
     }
 
     let ahri = player_row(&buffer, "MidMage");
-    for token in ["MidMage", "Ahri", "Lv12", "6/1/7", "CS195.5", "SummonerFlash+SummonerDot"] {
+    for token in [
+        "MidMage",
+        "Ahri",
+        "Lv12",
+        "6/1/7",
+        "CS195.5",
+        "SummonerFlash+SummonerDot",
+    ] {
         assert!(ahri.contains(token), "Ahri panel missing {token:?}: {ahri}");
     }
 
     // Champions render exactly once across team rows (roster only).
     let champions = [
-        "Aatrox",
-        "Lee Sin",
-        "Ahri",
-        "Jinx",
-        "Lulu",
-        "Darius",
-        "Graves",
-        "Syndra",
-        "Kai'Sa",
+        "Aatrox", "Lee Sin", "Ahri", "Jinx", "Lulu", "Darius", "Graves", "Syndra", "Kai'Sa",
         "Thresh",
     ];
     for champion in champions {
         let rows = team_rows_containing(&buffer, champion);
-        assert_eq!(rows.len(), 1, "{champion} must appear on exactly one team row");
+        assert_eq!(
+            rows.len(),
+            1,
+            "{champion} must appear on exactly one team row"
+        );
     }
 }
 
@@ -160,14 +185,23 @@ fn every_panel_shows_its_exposed_fields() {
 fn dead_players_show_their_exposed_respawn_timer() {
     let buffer = draw(&live_app_with("full"));
     let lee_sin = player_row(&buffer, "JungleKing");
-    assert!(lee_sin.contains("DEAD(respawn 12.5)"), "exposed timer verbatim: {lee_sin}");
+    assert!(
+        lee_sin.contains("DEAD(respawn 12.5)"),
+        "exposed timer verbatim: {lee_sin}"
+    );
 
     let graves = player_row(&buffer, "GravesMain");
-    assert!(graves.contains("DEAD(respawn 34)"), "exposed timer verbatim: {graves}");
+    assert!(
+        graves.contains("DEAD(respawn 34)"),
+        "exposed timer verbatim: {graves}"
+    );
 
     // Alive players carry no death tag.
     let lulu = player_row(&buffer, "SupportSage");
-    assert!(!lulu.contains("DEAD"), "alive panel must not be marked dead: {lulu}");
+    assert!(
+        !lulu.contains("DEAD"),
+        "alive panel must not be marked dead: {lulu}"
+    );
 }
 
 #[test]
@@ -179,11 +213,14 @@ fn latest_snapshot_is_reflected_on_the_next_frame() {
     // A fresh snapshot with changed data must win on the very next frame.
     let mut updated = snapshot_from_fixture("full");
     updated.players[0].level = Some(18);
-    app.on_msg(PollMsg::Snapshot(updated));
+    app.on_msg(PollMsg::Snapshot(Box::new(updated)));
 
     let second = draw(&app);
     let aatrox = player_row(&second, "TopLaneTitan");
-    assert!(aatrox.contains("Lv18"), "latest snapshot must render: {aatrox}");
+    assert!(
+        aatrox.contains("Lv18"),
+        "latest snapshot must render: {aatrox}"
+    );
 }
 
 // --- Task 4.3: per-field degradation (ui spec R3/S2, R3/S3) ---
@@ -196,13 +233,25 @@ fn partial_fields_degrade_explicitly_and_only_where_absent() {
     let buffer = draw(&live_app_with("partial_player"));
 
     let kaisa = player_row(&buffer, "KaiSaFan");
-    for token in
-        ["KaiSaFan", "Kai'Sa", "Lv11", "4/5/?", "CS?", "Items: ?", "SummonerHeal+SummonerFlash"]
-    {
-        assert!(kaisa.contains(token), "degraded panel missing {token:?}: {kaisa}");
+    for token in [
+        "KaiSaFan",
+        "Kai'Sa",
+        "Lv11",
+        "4/5/?",
+        "CS?",
+        "Items: ?",
+        "SummonerHeal+SummonerFlash",
+    ] {
+        assert!(
+            kaisa.contains(token),
+            "degraded panel missing {token:?}: {kaisa}"
+        );
     }
     // She is alive: no death tag may be invented.
-    assert!(!kaisa.contains("DEAD"), "alive panel must not be marked dead: {kaisa}");
+    assert!(
+        !kaisa.contains("DEAD"),
+        "alive panel must not be marked dead: {kaisa}"
+    );
 
     // Every other panel remains fully populated — no placeholder leaks.
     for name in ["TopLaneTitan", "JungleKing", "MidMage", "HookMaster"] {
@@ -213,7 +262,10 @@ fn partial_fields_degrade_explicitly_and_only_where_absent() {
         );
     }
     let thresh = player_row(&buffer, "HookMaster");
-    assert!(thresh.contains("Locket of the Iron Solari"), "intact items survive: {thresh}");
+    assert!(
+        thresh.contains("Locket of the Iron Solari"),
+        "intact items survive: {thresh}"
+    );
 }
 
 /// isDead=true with an exposed timer prints that timer verbatim; with the
@@ -224,17 +276,24 @@ fn dead_player_without_exposed_timer_shows_unknown_marker_never_a_countdown() {
     let buffer = draw(&live_app_with("full"));
     let exposed = player_row(&buffer, "JungleKing");
     let tag = &exposed[exposed.find("DEAD").expect("death tag")..];
-    assert!(tag.starts_with("DEAD(respawn 12.5)"), "verbatim exposed timer: {tag}");
+    assert!(
+        tag.starts_with("DEAD(respawn 12.5)"),
+        "verbatim exposed timer: {tag}"
+    );
 
     // Same player, respawnTimer absent from the payload this time…
     let mut absent_timer = snapshot_from_fixture("full");
-    let jungle = absent_timer.players.iter_mut().find(|p| p.summoner_name.as_deref() == Some("JungleKing")).expect("JungleKing");
+    let jungle = absent_timer
+        .players
+        .iter_mut()
+        .find(|p| p.summoner_name.as_deref() == Some("JungleKing"))
+        .expect("JungleKing");
     assert_eq!(jungle.is_dead, Some(true));
     jungle.respawn_timer = None;
 
     let mut app = App::new();
     app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
-    app.on_msg(PollMsg::Snapshot(absent_timer));
+    app.on_msg(PollMsg::Snapshot(Box::new(absent_timer)));
 
     // …must yield an explicit unknown marker, never a computed number.
     let degraded = draw(&app);
@@ -258,14 +317,17 @@ fn local_gold_renders_on_the_local_strip() {
 
     let mut app = App::new();
     app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
-    app.on_msg(PollMsg::Snapshot(snapshot));
+    app.on_msg(PollMsg::Snapshot(Box::new(snapshot)));
 
     let buffer = draw(&app);
 
     let strip_y = find_row(&buffer, "LOCAL").expect("LOCAL strip");
     let strip = row_text(&buffer, strip_y);
     assert!(strip.contains("Ahri"), "local champion identified: {strip}");
-    assert!(strip.contains("Gold 4350"), "exposed gold verbatim: {strip}");
+    assert!(
+        strip.contains("Gold 4350"),
+        "exposed gold verbatim: {strip}"
+    );
 
     // Exclusivity: that gold value appears NOWHERE else in the frame.
     for y in 0..buffer.area.height {
@@ -288,7 +350,7 @@ fn missing_local_gold_degrades_and_no_enemy_panel_shows_gold() {
 
     let mut app = App::new();
     app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
-    app.on_msg(PollMsg::Snapshot(snapshot));
+    app.on_msg(PollMsg::Snapshot(Box::new(snapshot)));
 
     let buffer = draw(&app);
 
@@ -299,7 +361,10 @@ fn missing_local_gold_degrades_and_no_enemy_panel_shows_gold() {
         assert!(!row_text(&buffer, y).contains("Gold 4350"));
         let text = row_text(&buffer, y);
         if !text.contains("LOCAL") {
-            assert!(!text.contains("Gold"), "no gold outside the LOCAL strip, row {y}: {text}");
+            assert!(
+                !text.contains("Gold"),
+                "no gold outside the LOCAL strip, row {y}: {text}"
+            );
         }
     }
 }

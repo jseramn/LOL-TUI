@@ -4,7 +4,7 @@
 //! RED phase Unit 2 tasks 2.1–2.4: these tests were authored BEFORE any
 //! `src/api` implementation existed (strict-TDD ordering).
 
-use rcgen::{generate_simple_self_signed, CertifiedKey};
+use rcgen::{CertifiedKey, generate_simple_self_signed};
 use std::net::TcpListener;
 use tui_lol::api::client::{ApiClient, ENDPOINT_ALL_GAME_DATA, LIVE_CLIENT_PORT, LOOPBACK_HOST};
 use tui_lol::api::error::{BuildError, PollError, TransientReason};
@@ -38,8 +38,7 @@ fn loopback_host_constructs_client() {
 // ---------------------------------------------------------------------------
 
 /// Provenance digest claimed by the header comment inside the vendored pem.
-const RIOT_PEM_SHA256: &str =
-    "da884275737f024b33c93ae5d28bdb002768a3cb73752ab40254a32218193521";
+const RIOT_PEM_SHA256: &str = "da884275737f024b33c93ae5d28bdb002768a3cb73752ab40254a32218193521";
 
 /// The provenance SHA-256 covers the certificate artifact exactly as
 /// published: bytes from the BEGIN CERTIFICATE marker onward, CRLF line
@@ -138,9 +137,8 @@ fn refused_connection_classifies_as_not_bound() {
     let port = listener.local_addr().unwrap().port();
     drop(listener); // release: nothing is bound anymore
 
-    let client =
-        ApiClient::with_fetch_timeout(LOOPBACK_HOST, port, Duration::from_secs(6))
-            .expect("loopback constructs");
+    let client = ApiClient::with_fetch_timeout(LOOPBACK_HOST, port, Duration::from_secs(6))
+        .expect("loopback constructs");
     let err = client.fetch(ENDPOINT_ALL_GAME_DATA);
     match err {
         Err(PollError::NotBound(detail)) => assert!(!detail.is_empty()),

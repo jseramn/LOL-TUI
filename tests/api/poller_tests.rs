@@ -12,7 +12,7 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use tui_lol::api::error::{PollError, TransientReason};
-use tui_lol::api::poller::{clamp_cadence, Clock, Lifecycle, PollMsg, Poller};
+use tui_lol::api::poller::{Clock, Lifecycle, PollMsg, Poller, clamp_cadence};
 use tui_lol::api::source::HttpSource;
 
 const FULL_BODY: &str = include_str!("../fixtures/allgamedata/full.json");
@@ -126,7 +126,11 @@ fn poller_uses_clamped_cadence() {
     let entries = log.borrow();
     let (start0, end0) = entries[0];
     assert_eq!((start0, end0), (0, 30));
-    assert_eq!(clock.now_millis(), 250, "sleep_until(start+cadence) jumps there");
+    assert_eq!(
+        clock.now_millis(),
+        250,
+        "sleep_until(start+cadence) jumps there"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -196,7 +200,10 @@ fn slow_response_never_overlaps_next_cycle() {
     }
     // First cycle: fetch 0..900, then the overdue sleep is a no-op jump.
     assert_eq!(entries[0], (0, 900));
-    assert_eq!(entries[1].0, 900, "second cycle starts exactly at first resolve");
+    assert_eq!(
+        entries[1].0, 900,
+        "second cycle starts exactly at first resolve"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -271,8 +278,15 @@ fn first_contact_announces_ingame_then_snapshot() {
     assert_eq!(messages[0], PollMsg::Lifecycle(Lifecycle::InGame));
     match &messages[1] {
         PollMsg::Snapshot(snapshot) => {
-            assert_eq!(snapshot.players.len(), 10, "snapshot must come from a real parse");
-            assert_eq!(snapshot.game.as_ref().and_then(|g| g.game_mode.clone()), Some(String::from("CLASSIC")));
+            assert_eq!(
+                snapshot.players.len(),
+                10,
+                "snapshot must come from a real parse"
+            );
+            assert_eq!(
+                snapshot.game.as_ref().and_then(|g| g.game_mode.clone()),
+                Some(String::from("CLASSIC"))
+            );
         }
         other => panic!("expected Snapshot after lifecycle, got {other:?}"),
     }
@@ -286,9 +300,18 @@ fn repeated_refusals_while_idle_emit_nothing() {
     let log = Log::default();
     let mut poller = scripted(&clock, &log, &[not_bound(), not_bound(), not_bound()]);
 
-    assert!(poller.run_once().is_empty(), "first idle refusal is no change");
-    assert!(poller.run_once().is_empty(), "second idle refusal is no change");
-    assert!(poller.run_once().is_empty(), "third idle refusal is no change");
+    assert!(
+        poller.run_once().is_empty(),
+        "first idle refusal is no change"
+    );
+    assert!(
+        poller.run_once().is_empty(),
+        "second idle refusal is no change"
+    );
+    assert!(
+        poller.run_once().is_empty(),
+        "third idle refusal is no change"
+    );
 }
 
 /// poller:R3/S2 (disconnect half) — live game losing its server emits exactly
@@ -303,7 +326,10 @@ fn disconnect_after_live_emits_single_not_ingame() {
 
     let messages = poller.run_once();
     assert_eq!(messages, vec![PollMsg::Lifecycle(Lifecycle::NotInGame)]);
-    assert!(poller.run_once().is_empty(), "repeat refusal must not re-emit");
+    assert!(
+        poller.run_once().is_empty(),
+        "repeat refusal must not re-emit"
+    );
 }
 
 /// poller:R3/S2 (reconnect half) — server accepting again flips back to
@@ -313,8 +339,11 @@ fn reconnect_after_disconnect_emits_ingame_again() {
     let clock = Rc::new(FakeClock::default());
     let log = Log::default();
     // live → gone → still gone → back
-    let mut poller =
-        scripted(&clock, &log, &[ok(FULL_BODY), not_bound(), not_bound(), ok(FULL_BODY)]);
+    let mut poller = scripted(
+        &clock,
+        &log,
+        &[ok(FULL_BODY), not_bound(), not_bound(), ok(FULL_BODY)],
+    );
     let _ = poller.run_once(); // InGame
     let _ = poller.run_once(); // disconnect
     let _ = poller.run_once(); // still gone
@@ -329,10 +358,18 @@ fn reconnect_after_disconnect_emits_ingame_again() {
 /// Transient(reason), NEVER a lifecycle change.
 #[test]
 fn transient_failures_keep_game_state() {
-    for reason in [TransientReason::Timeout, TransientReason::Tls, TransientReason::Http] {
+    for reason in [
+        TransientReason::Timeout,
+        TransientReason::Tls,
+        TransientReason::Http,
+    ] {
         let clock = Rc::new(FakeClock::default());
         let log = Log::default();
-        let mut poller = scripted(&clock, &log, &[ok(FULL_BODY), Err(PollError::Transient(reason))]);
+        let mut poller = scripted(
+            &clock,
+            &log,
+            &[ok(FULL_BODY), Err(PollError::Transient(reason))],
+        );
         let _prime = poller.run_once(); // reaches InGame
 
         let messages = poller.run_once();
@@ -350,14 +387,21 @@ fn transient_failures_keep_game_state() {
 fn malformed_body_reports_parse_and_keeps_game_state() {
     let clock = Rc::new(FakeClock::default());
     let log = Log::default();
-    let mut poller =
-        scripted(&clock, &log, &[ok(FULL_BODY), ok(MALFORMED_BODY), ok(FULL_BODY)]);
+    let mut poller = scripted(
+        &clock,
+        &log,
+        &[ok(FULL_BODY), ok(MALFORMED_BODY), ok(FULL_BODY)],
+    );
     let _prime = poller.run_once(); // reaches InGame
 
     let degraded = poller.run_once();
     assert_eq!(degraded, vec![PollMsg::Transient(TransientReason::Parse)]);
 
     let recovered = poller.run_once();
-    assert_eq!(recovered.len(), 1, "lifecycle unchanged means no Lifecycle msg");
+    assert_eq!(
+        recovered.len(),
+        1,
+        "lifecycle unchanged means no Lifecycle msg"
+    );
     assert!(matches!(recovered[0], PollMsg::Snapshot(_)));
 }

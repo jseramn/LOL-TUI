@@ -71,9 +71,15 @@ impl ApiClient {
     /// # Errors
     /// [`BuildError::NonLoopbackHost`] when `host` is not the literal
     /// `127.0.0.1`.
-    pub fn with_fetch_timeout(host: &str, port: u16, timeout: Duration) -> Result<Self, BuildError> {
+    pub fn with_fetch_timeout(
+        host: &str,
+        port: u16,
+        timeout: Duration,
+    ) -> Result<Self, BuildError> {
         if host != LOOPBACK_HOST {
-            return Err(BuildError::NonLoopbackHost { host: host.to_owned() });
+            return Err(BuildError::NonLoopbackHost {
+                host: host.to_owned(),
+            });
         }
         let riot_root = reqwest::tls::Certificate::from_pem(RIOT_ROOT_PEM)
             .expect("vendored riotgames.pem must parse");
@@ -84,7 +90,11 @@ impl ApiClient {
             .add_root_certificate(riot_root)
             .build()
             .expect("reqwest client builder cannot fail with these options");
-        Ok(Self { host: host.to_owned(), port, http })
+        Ok(Self {
+            host: host.to_owned(),
+            port,
+            http,
+        })
     }
 
     pub fn host(&self) -> &str {
@@ -112,7 +122,9 @@ impl ApiClient {
         let url = self.url(path);
         let response = self.http.get(&url).send().map_err(classify_transport)?;
         ensure_usable_status(response.status())?;
-        response.text().map_err(|_| PollError::Transient(TransientReason::Http))
+        response
+            .text()
+            .map_err(|_| PollError::Transient(TransientReason::Http))
     }
 }
 
