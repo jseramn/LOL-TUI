@@ -10,7 +10,7 @@
 //! snapshot value verbatim — nothing is derived or counted down locally.
 
 use crate::app::App;
-use crate::model::snapshot::{PlayerSnapshot, Snapshot, Team};
+use crate::model::snapshot::{LocalPlayerSnapshot, PlayerSnapshot, Snapshot, Team};
 use ratatui::layout::Rect;
 use ratatui::{Frame, widgets::Paragraph};
 
@@ -45,6 +45,43 @@ fn draw_snapshot(pen: &mut Pen, snapshot: &Snapshot, frame: &mut Frame) {
             pen.line(player_line(player), frame);
         }
     }
+
+    // Local-player strip (ui spec R4): the ONLY surface that ever renders
+    // gold. `activePlayer` absent from the payload → no strip at all.
+    if let Some(local) = &snapshot.local {
+        pen.line(local_line(local), frame);
+    }
+}
+
+/// Formats the distinguished local-player line:
+/// `LOCAL {champion} Lv{level} Gold {gold} | HP {cur}/{max} Power {p}/{max} MS {ms}`
+///
+/// Gold is rendered exclusively here — roster panels never carry it
+/// (ui spec R4/S2). Values are exposed verbatim; absent ones degrade to
+/// [`UNKNOWN`].
+fn local_line(local: &LocalPlayerSnapshot) -> String {
+    let mut line = String::from("LOCAL");
+    push_part(&mut line, local.champion.as_deref());
+
+    line.push_str(" Lv");
+    line.push_str(local.level.map(|l| l.to_string()).as_deref().unwrap_or(UNKNOWN));
+
+    line.push_str(" Gold ");
+    line.push_str(local.current_gold.map(|g| g.to_string()).as_deref().unwrap_or(UNKNOWN));
+
+    if let Some(stats) = &local.stats {
+        line.push_str(" | HP ");
+        line.push_str(stats.current_health.map(|v| v.to_string()).as_deref().unwrap_or(UNKNOWN));
+        line.push('/');
+        line.push_str(stats.max_health.map(|v| v.to_string()).as_deref().unwrap_or(UNKNOWN));
+        line.push_str(" Power ");
+        line.push_str(stats.power.map(|v| v.to_string()).as_deref().unwrap_or(UNKNOWN));
+        line.push('/');
+        line.push_str(stats.power_max.map(|v| v.to_string()).as_deref().unwrap_or(UNKNOWN));
+        line.push_str(" MS ");
+        line.push_str(stats.movement_speed.map(|v| v.to_string()).as_deref().unwrap_or(UNKNOWN));
+    }
+    line
 }
 
 /// One-line vertical cursor that clips at the frame bottom instead of
