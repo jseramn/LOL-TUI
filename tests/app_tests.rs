@@ -10,7 +10,7 @@
 use std::sync::mpsc;
 
 use tui_lol::api::error::TransientReason;
-use tui_lol::api::poller::{Lifecycle, PollMsg};
+use tui_lol::api::poller::{Clock, Lifecycle, PollMsg};
 use tui_lol::app::{App, Health, Phase};
 use tui_lol::model::snapshot::{PlayerSnapshot, Snapshot};
 
@@ -157,4 +157,27 @@ fn drain_of_empty_and_disconnected_channels_is_safe() {
     drop(tx); // poller thread gone: must not hang or panic
     assert_eq!(app.drain(&rx), 0);
     assert_eq!(app.phase(), Phase::InGame { health: Health::Healthy });
+}
+
+// --- Last-update stamping (status-line input, ui spec R6) -------------------
+
+/// Deterministic clock so the stamp assertion is exact, not wall-time-flaky.
+struct FixedClock(u64);
+
+impl Clock for FixedClock {
+    fn now_millis(&self) -> u64 {
+        self.0
+    }
+
+    fn sleep_until_millis(&self, _deadline_millis: u64) {}
+}
+
+#[test]
+fn fresh_snapshot_stamps_last_update_from_the_clock() {
+    let mut app = App::with_clock(FixedClock(1_724_592_000_123));
+    app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
+    assert!(app.last_update_millis().is_none(), "lifecycle-only contact is not an update");
+
+    app.on_msg(PollMsg::Snapshot(snap(&["A"])));
+    assert_eq!(app.last_update_millis(), Some(1_724_592_000_123));
 }
