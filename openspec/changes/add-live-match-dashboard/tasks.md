@@ -82,9 +82,9 @@ Every task step marked **Test:** or **Build:** executes these exact strings.
 
 ## Phase 6: Verification & Compliance
 
-- [ ] 6.1 Full pass: CT green; `cargo fmt` clean; `cargo clippy -j 1 -- -D warnings` under the canonical env prefix.
-- [ ] 6.2 Compliance audit: grep model/api for computed timers/countdowns (must find none — design hard rule); gold local-only; ticker times verbatim; RIOT_NOTICE reachable from every view path. Record findings in PR description.
-- [ ] 6.3 Write `docs/manual-verify.md`: Windows Terminal + classic conhost checklist — live-game TLS accept, mid-game disconnect/reconnect standby↔live swap, quit restores console (design manual/E2E row).
+- [x] 6.1 Full pass: CT green; `cargo fmt` clean; `cargo clippy -j 1 -- -D warnings` under the canonical env prefix.
+- [x] 6.2 Compliance audit: grep model/api for computed timers/countdowns (must find none — design hard rule); gold local-only; ticker times verbatim; RIOT_NOTICE reachable from every view path. Record findings in PR description.
+- [x] 6.3 Write `docs/manual-verify.md`: Windows Terminal + classic conhost checklist — live-game TLS accept, mid-game disconnect/reconnect standby↔live swap, quit restores console (design manual/E2E row).
 
 ---
 
