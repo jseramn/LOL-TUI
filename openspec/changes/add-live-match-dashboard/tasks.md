@@ -68,10 +68,10 @@ Every task step marked **Test:** or **Build:** executes these exact strings.
 
 ## Phase 4: Live Panels
 
-- [ ] 4.1 RED `tests/ui/dashboard_tests.rs`: full-fixture Snapshot → buffer renders 10 panels grouped by team with champion, level, KDA, CS, items, spells(+exposed cooldowns) (ui:R3/S1). Run CT → RED.
-- [ ] 4.2 GREEN `src/ui/dashboard.rs`: team-grouped grid; latest snapshot reflected next frame.
-- [ ] 4.3 RED/GREEN degradation: partial_player → explicit placeholders ONLY on absent fields of that panel, others intact (ui:R3/S2); dead player shows exposed respawnTimer; isDead=true without timer → unknown marker, NEVER a derived countdown (R3/S3).
-- [ ] 4.4 RED/GREEN local panel: currentGold 4350 renders on local pane (ui:R4/S1); absent gold → placeholder; gold value appears in NO non-local panel (R4/S2). Test: CT green.
+- [x] 4.1 RED `tests/ui/dashboard_tests.rs`: full-fixture Snapshot → buffer renders 10 panels grouped by team with champion, level, KDA, CS, items, spells(+exposed cooldowns) (ui:R3/S1). Run CT → RED.
+- [x] 4.2 GREEN `src/ui/dashboard.rs`: team-grouped grid; latest snapshot reflected next frame.
+- [x] 4.3 RED/GREEN degradation: partial_player → explicit placeholders ONLY on absent fields of that panel, others intact (ui:R3/S2); dead player shows exposed respawnTimer; isDead=true without timer → unknown marker, NEVER a derived countdown (R3/S3).
+- [x] 4.4 RED/GREEN local panel: currentGold 4350 renders on local pane (ui:R4/S1); absent gold → placeholder; gold value appears in NO non-local panel (R4/S2). Test: CT green.
 
 ## Phase 5: Ticker, Standby, Status Line
 
