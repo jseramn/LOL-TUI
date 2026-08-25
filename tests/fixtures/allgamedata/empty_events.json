@@ -1,0 +1,1076 @@
+{
+    "gameStats":  {
+                      "gameMode":  "CLASSIC",
+                      "gameTime":  754.19,
+                      "mapName":  "Map11",
+                      "mapNumber":  1,
+                      "mapTerrain":  "Default"
+                  },
+    "activePlayer":  {
+                         "abilities":  {
+                                           "Passive":  {
+                                                           "abilityLevel":  1,
+                                                           "displayName":  "Essence Flux",
+                                                           "id":  "AhriEssenceFlux",
+                                                           "rawDescription":  "description",
+                                                           "rawDisplayName":  "Essence Flux"
+                                                       },
+                                           "Q":  {
+                                                     "abilityLevel":  4,
+                                                     "displayName":  "Orb of Deception",
+                                                     "id":  "AhriOrbofDeception",
+                                                     "rawDescription":  "description",
+                                                     "rawDisplayName":  "Orb of Deception"
+                                                 },
+                                           "W":  {
+                                                     "abilityLevel":  2,
+                                                     "displayName":  "Fox-Fire",
+                                                     "id":  "AhriFoxFire",
+                                                     "rawDescription":  "description",
+                                                     "rawDisplayName":  "Fox-Fire"
+                                                 },
+                                           "E":  {
+                                                     "abilityLevel":  3,
+                                                     "displayName":  "Charm",
+                                                     "id":  "AhriSeduce",
+                                                     "rawDescription":  "description",
+                                                     "rawDisplayName":  "Charm"
+                                                 },
+                                           "R":  {
+                                                     "abilityLevel":  1,
+                                                     "displayName":  "Spirit Rush",
+                                                     "id":  "AhriTumble",
+                                                     "rawDescription":  "description",
+                                                     "rawDisplayName":  "Spirit Rush"
+                                                 }
+                                       },
+                         "championName":  "Ahri",
+                         "currentGold":  1234.56,
+                         "level":  12,
+                         "statistics":  {
+                                            "abilityPower":  312.0,
+                                            "armor":  78.4,
+                                            "attackDamage":  96.2,
+                                            "attackRange":  550.0,
+                                            "attackSpeed":  1104.0,
+                                            "critChance":  0.0,
+                                            "currentHealth":  1875.0,
+                                            "healthRegenRate":  7.55,
+                                            "lifesteal":  0.0,
+                                            "magicResist":  52.3,
+                                            "maxHealth":  2015.0,
+                                            "movementSpeed":  355.0,
+                                            "omnivamp":  0.0,
+                                            "physicalLethality":  0.0,
+                                            "physicalVamp":  0.0,
+                                            "power":  940.0,
+                                            "powerMax":  1120.0,
+                                            "powerRegenRate":  8.01
+                                        }
+                     },
+    "allPlayers":  [
+                       {
+                           "championName":  "Aatrox",
+                           "isBot":  false,
+                           "level":  13,
+                           "isDead":  false,
+                           "respawnTimer":  0.0,
+                           "position":  "TOP",
+                           "rawChampionName":  "game_character_displayname_Aatrox",
+                           "scores":  {
+                                          "assists":  4,
+                                          "creepScore":  212.0,
+                                          "deaths":  2,
+                                          "kills":  5,
+                                          "wardScore":  0.31
+                                      },
+                           "items":  [
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Berserker\u0027s Greaves",
+                                             "itemID":  3006,
+                                             "price":  1100,
+                                             "rawDisplayName":  "item",
+                                             "slot":  0
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Kraken Slayer",
+                                             "itemID":  6672,
+                                             "price":  3100,
+                                             "rawDisplayName":  "item",
+                                             "slot":  1
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Blade of The Ruined King",
+                                             "itemID":  3153,
+                                             "price":  3200,
+                                             "rawDisplayName":  "item",
+                                             "slot":  2
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Guardian Angel",
+                                             "itemID":  3026,
+                                             "price":  3000,
+                                             "rawDisplayName":  "item",
+                                             "slot":  3
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Death\u0027s Dance",
+                                             "itemID":  6333,
+                                             "price":  3300,
+                                             "rawDisplayName":  "item",
+                                             "slot":  4
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Long Sword",
+                                             "itemID":  1036,
+                                             "price":  350,
+                                             "rawDisplayName":  "item",
+                                             "slot":  5
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Warding Totem Trinket",
+                                             "itemID":  3340,
+                                             "price":  0,
+                                             "rawDisplayName":  "item",
+                                             "slot":  6
+                                         }
+                                     ],
+                           "summonerSpells":  {
+                                                  "summonerSpellOne":  {
+                                                                           "displayName":  "SummonerFlash"
+                                                                       },
+                                                  "summonerSpellTwo":  {
+                                                                           "displayName":  "SummonerTeleport"
+                                                                       }
+                                              },
+                           "team":  "ORDER",
+                           "riotIdGameName":  "TopLaneTitan",
+                           "riotIdTagLine":  "BR1",
+                           "summonerName":  "TopLaneTitan"
+                       },
+                       {
+                           "championName":  "Lee Sin",
+                           "isBot":  false,
+                           "level":  12,
+                           "isDead":  true,
+                           "respawnTimer":  12.5,
+                           "position":  "JUNGLE",
+                           "rawChampionName":  "game_character_displayname_MonkeyKing",
+                           "scores":  {
+                                          "assists":  9,
+                                          "creepScore":  168.0,
+                                          "deaths":  3,
+                                          "kills":  4,
+                                          "wardScore":  0.87
+                                      },
+                           "items":  [
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Scorchclaw Pup",
+                                             "itemID":  1102,
+                                             "price":  350,
+                                             "rawDisplayName":  "item",
+                                             "slot":  0
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Ionian Boots of Lucidity",
+                                             "itemID":  3158,
+                                             "price":  1000,
+                                             "rawDisplayName":  "item",
+                                             "slot":  1
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Eclipse",
+                                             "itemID":  6692,
+                                             "price":  2800,
+                                             "rawDisplayName":  "item",
+                                             "slot":  2
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Black Cleaver",
+                                             "itemID":  3074,
+                                             "price":  3000,
+                                             "rawDisplayName":  "item",
+                                             "slot":  3
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Serylda\u0027s Grudge",
+                                             "itemID":  6694,
+                                             "price":  3200,
+                                             "rawDisplayName":  "item",
+                                             "slot":  4
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  true,
+                                             "count":  1,
+                                             "displayName":  "Health Potion",
+                                             "itemID":  2003,
+                                             "price":  50,
+                                             "rawDisplayName":  "item",
+                                             "slot":  5
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Warding Totem Trinket",
+                                             "itemID":  3340,
+                                             "price":  0,
+                                             "rawDisplayName":  "item",
+                                             "slot":  6
+                                         }
+                                     ],
+                           "summonerSpells":  {
+                                                  "summonerSpellOne":  {
+                                                                           "displayName":  "SummonerFlash"
+                                                                       },
+                                                  "summonerSpellTwo":  {
+                                                                           "displayName":  "SummonerSmite"
+                                                                       }
+                                              },
+                           "team":  "ORDER",
+                           "riotIdGameName":  "JungleKing",
+                           "riotIdTagLine":  "BR1",
+                           "summonerName":  "JungleKing"
+                       },
+                       {
+                           "championName":  "Ahri",
+                           "isBot":  false,
+                           "level":  12,
+                           "isDead":  false,
+                           "respawnTimer":  0.0,
+                           "position":  "MIDDLE",
+                           "rawChampionName":  "game_character_displayname_Ahri",
+                           "scores":  {
+                                          "assists":  7,
+                                          "creepScore":  195.5,
+                                          "deaths":  1,
+                                          "kills":  6,
+                                          "wardScore":  0.42
+                                      },
+                           "items":  [
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Sorcerer\u0027s Shoes",
+                                             "itemID":  3020,
+                                             "price":  1100,
+                                             "rawDisplayName":  "item",
+                                             "slot":  0
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Luden\u0027s Companion",
+                                             "itemID":  6655,
+                                             "price":  2850,
+                                             "rawDisplayName":  "item",
+                                             "slot":  1
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Rabadon\u0027s Deathcap",
+                                             "itemID":  3089,
+                                             "price":  3600,
+                                             "rawDisplayName":  "item",
+                                             "slot":  2
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Morellonomicon",
+                                             "itemID":  3165,
+                                             "price":  2600,
+                                             "rawDisplayName":  "item",
+                                             "slot":  3
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Shadowflame",
+                                             "itemID":  4645,
+                                             "price":  3000,
+                                             "rawDisplayName":  "item",
+                                             "slot":  4
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Zhonya\u0027s Hourglass",
+                                             "itemID":  3157,
+                                             "price":  3000,
+                                             "rawDisplayName":  "item",
+                                             "slot":  5
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Farsight Alteration",
+                                             "itemID":  3364,
+                                             "price":  0,
+                                             "rawDisplayName":  "item",
+                                             "slot":  6
+                                         }
+                                     ],
+                           "summonerSpells":  {
+                                                  "summonerSpellOne":  {
+                                                                           "displayName":  "SummonerFlash"
+                                                                       },
+                                                  "summonerSpellTwo":  {
+                                                                           "displayName":  "SummonerDot"
+                                                                       }
+                                              },
+                           "team":  "ORDER",
+                           "riotIdGameName":  "MidMage",
+                           "riotIdTagLine":  "BR1",
+                           "summonerName":  "MidMage"
+                       },
+                       {
+                           "championName":  "Jinx",
+                           "isBot":  false,
+                           "level":  11,
+                           "isDead":  false,
+                           "respawnTimer":  0.0,
+                           "position":  "BOTTOM",
+                           "rawChampionName":  "game_character_displayname_Jinx",
+                           "scores":  {
+                                          "assists":  3,
+                                          "creepScore":  244.0,
+                                          "deaths":  2,
+                                          "kills":  7,
+                                          "wardScore":  0.11
+                                      },
+                           "items":  [
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Berserker\u0027s Greaves",
+                                             "itemID":  3006,
+                                             "price":  1100,
+                                             "rawDisplayName":  "item",
+                                             "slot":  0
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Infinity Edge",
+                                             "itemID":  3031,
+                                             "price":  3400,
+                                             "rawDisplayName":  "item",
+                                             "slot":  1
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Bloodthirster",
+                                             "itemID":  3072,
+                                             "price":  3400,
+                                             "rawDisplayName":  "item",
+                                             "slot":  2
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Phantom Dancer",
+                                             "itemID":  3046,
+                                             "price":  2700,
+                                             "rawDisplayName":  "item",
+                                             "slot":  3
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Immortal Shieldbow",
+                                             "itemID":  6673,
+                                             "price":  3100,
+                                             "rawDisplayName":  "item",
+                                             "slot":  4
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  true,
+                                             "count":  2,
+                                             "displayName":  "Health Potion",
+                                             "itemID":  2003,
+                                             "price":  50,
+                                             "rawDisplayName":  "item",
+                                             "slot":  5
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Warding Totem Trinket",
+                                             "itemID":  3340,
+                                             "price":  0,
+                                             "rawDisplayName":  "item",
+                                             "slot":  6
+                                         }
+                                     ],
+                           "summonerSpells":  {
+                                                  "summonerSpellOne":  {
+                                                                           "displayName":  "SummonerHeal"
+                                                                       },
+                                                  "summonerSpellTwo":  {
+                                                                           "displayName":  "SummonerFlash"
+                                                                       }
+                                              },
+                           "team":  "ORDER",
+                           "riotIdGameName":  "ADCarryMain",
+                           "riotIdTagLine":  "BR1",
+                           "summonerName":  "ADCarryMain"
+                       },
+                       {
+                           "championName":  "Lulu",
+                           "isBot":  false,
+                           "level":  10,
+                           "isDead":  false,
+                           "respawnTimer":  0.0,
+                           "position":  "UTILITY",
+                           "rawChampionName":  "game_character_displayname_Lulu",
+                           "scores":  {
+                                          "assists":  18,
+                                          "creepScore":  48.0,
+                                          "deaths":  4,
+                                          "kills":  1,
+                                          "wardScore":  1.24
+                                      },
+                           "items":  [
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "World Atlas",
+                                             "itemID":  3865,
+                                             "price":  400,
+                                             "rawDisplayName":  "item",
+                                             "slot":  0
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Mikael\u0027s Blessing",
+                                             "itemID":  3222,
+                                             "price":  2400,
+                                             "rawDisplayName":  "item",
+                                             "slot":  1
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Ardent Censer",
+                                             "itemID":  3504,
+                                             "price":  2300,
+                                             "rawDisplayName":  "item",
+                                             "slot":  2
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Shurelya\u0027s Battlesong",
+                                             "itemID":  2065,
+                                             "price":  2500,
+                                             "rawDisplayName":  "item",
+                                             "slot":  3
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  true,
+                                             "count":  2,
+                                             "displayName":  "Control Ward",
+                                             "itemID":  2055,
+                                             "price":  75,
+                                             "rawDisplayName":  "item",
+                                             "slot":  4
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Boots",
+                                             "itemID":  1001,
+                                             "price":  300,
+                                             "rawDisplayName":  "item",
+                                             "slot":  5
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Warding Totem Trinket",
+                                             "itemID":  3340,
+                                             "price":  0,
+                                             "rawDisplayName":  "item",
+                                             "slot":  6
+                                         }
+                                     ],
+                           "summonerSpells":  {
+                                                  "summonerSpellOne":  {
+                                                                           "displayName":  "SummonerFlash"
+                                                                       },
+                                                  "summonerSpellTwo":  {
+                                                                           "displayName":  "SummonerDot"
+                                                                       }
+                                              },
+                           "team":  "ORDER",
+                           "riotIdGameName":  "SupportSage",
+                           "riotIdTagLine":  "BR1",
+                           "summonerName":  "SupportSage"
+                       },
+                       {
+                           "championName":  "Darius",
+                           "isBot":  false,
+                           "level":  12,
+                           "isDead":  false,
+                           "respawnTimer":  0.0,
+                           "position":  "TOP",
+                           "rawChampionName":  "game_character_displayname_Darius",
+                           "scores":  {
+                                          "assists":  2,
+                                          "creepScore":  198.0,
+                                          "deaths":  4,
+                                          "kills":  3,
+                                          "wardScore":  0.15
+                                      },
+                           "items":  [
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Plated Steelcaps",
+                                             "itemID":  3047,
+                                             "price":  1100,
+                                             "rawDisplayName":  "item",
+                                             "slot":  0
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Sterak\u0027s Gage",
+                                             "itemID":  3053,
+                                             "price":  3100,
+                                             "rawDisplayName":  "item",
+                                             "slot":  1
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Trinity Force",
+                                             "itemID":  3161,
+                                             "price":  3333,
+                                             "rawDisplayName":  "item",
+                                             "slot":  2
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Death\u0027s Dance",
+                                             "itemID":  6333,
+                                             "price":  3300,
+                                             "rawDisplayName":  "item",
+                                             "slot":  3
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Cloth Armor",
+                                             "itemID":  1029,
+                                             "price":  300,
+                                             "rawDisplayName":  "item",
+                                             "slot":  4
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  true,
+                                             "count":  1,
+                                             "displayName":  "Health Potion",
+                                             "itemID":  2003,
+                                             "price":  50,
+                                             "rawDisplayName":  "item",
+                                             "slot":  5
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Warding Totem Trinket",
+                                             "itemID":  3340,
+                                             "price":  0,
+                                             "rawDisplayName":  "item",
+                                             "slot":  6
+                                         }
+                                     ],
+                           "summonerSpells":  {
+                                                  "summonerSpellOne":  {
+                                                                           "displayName":  "SummonerFlash"
+                                                                       },
+                                                  "summonerSpellTwo":  {
+                                                                           "displayName":  "SummonerGhost"
+                                                                       }
+                                              },
+                           "team":  "CHAOS",
+                           "riotIdGameName":  "TopGap",
+                           "riotIdTagLine":  "BR1",
+                           "summonerName":  "TopGap"
+                       },
+                       {
+                           "championName":  "Graves",
+                           "isBot":  false,
+                           "level":  12,
+                           "isDead":  true,
+                           "respawnTimer":  34.0,
+                           "position":  "JUNGLE",
+                           "rawChampionName":  "game_character_displayname_Graves",
+                           "scores":  {
+                                          "assists":  5,
+                                          "creepScore":  176.0,
+                                          "deaths":  3,
+                                          "kills":  5,
+                                          "wardScore":  0.63
+                                      },
+                           "items":  [
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Scorchclaw Pup",
+                                             "itemID":  1102,
+                                             "price":  350,
+                                             "rawDisplayName":  "item",
+                                             "slot":  0
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Plated Steelcaps",
+                                             "itemID":  3047,
+                                             "price":  1100,
+                                             "rawDisplayName":  "item",
+                                             "slot":  1
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "The Collector",
+                                             "itemID":  6691,
+                                             "price":  3100,
+                                             "rawDisplayName":  "item",
+                                             "slot":  2
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Youmuu\u0027s Ghostblade",
+                                             "itemID":  3179,
+                                             "price":  2900,
+                                             "rawDisplayName":  "item",
+                                             "slot":  3
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Rapid Firecannon",
+                                             "itemID":  3094,
+                                             "price":  2900,
+                                             "rawDisplayName":  "item",
+                                             "slot":  4
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  true,
+                                             "count":  1,
+                                             "displayName":  "Health Potion",
+                                             "itemID":  2003,
+                                             "price":  50,
+                                             "rawDisplayName":  "item",
+                                             "slot":  5
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Warding Totem Trinket",
+                                             "itemID":  3340,
+                                             "price":  0,
+                                             "rawDisplayName":  "item",
+                                             "slot":  6
+                                         }
+                                     ],
+                           "summonerSpells":  {
+                                                  "summonerSpellOne":  {
+                                                                           "displayName":  "SummonerFlash"
+                                                                       },
+                                                  "summonerSpellTwo":  {
+                                                                           "displayName":  "SummonerSmite"
+                                                                       }
+                                              },
+                           "team":  "CHAOS",
+                           "riotIdGameName":  "GravesMain",
+                           "riotIdTagLine":  "BR1",
+                           "summonerName":  "GravesMain"
+                       },
+                       {
+                           "championName":  "Syndra",
+                           "isBot":  false,
+                           "level":  13,
+                           "isDead":  false,
+                           "respawnTimer":  0.0,
+                           "position":  "MIDDLE",
+                           "rawChampionName":  "game_character_displayname_Syndra",
+                           "scores":  {
+                                          "assists":  6,
+                                          "creepScore":  230.0,
+                                          "deaths":  2,
+                                          "kills":  8,
+                                          "wardScore":  0.38
+                                      },
+                           "items":  [
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Sorcerer\u0027s Shoes",
+                                             "itemID":  3020,
+                                             "price":  1100,
+                                             "rawDisplayName":  "item",
+                                             "slot":  0
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Luden\u0027s Companion",
+                                             "itemID":  6655,
+                                             "price":  2850,
+                                             "rawDisplayName":  "item",
+                                             "slot":  1
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Horizon Focus",
+                                             "itemID":  4628,
+                                             "price":  2900,
+                                             "rawDisplayName":  "item",
+                                             "slot":  2
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Void Staff",
+                                             "itemID":  3135,
+                                             "price":  3000,
+                                             "rawDisplayName":  "item",
+                                             "slot":  3
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Banshee\u0027s Veil",
+                                             "itemID":  3102,
+                                             "price":  2900,
+                                             "rawDisplayName":  "item",
+                                             "slot":  4
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  true,
+                                             "count":  1,
+                                             "displayName":  "Health Potion",
+                                             "itemID":  2003,
+                                             "price":  50,
+                                             "rawDisplayName":  "item",
+                                             "slot":  5
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Farsight Alteration",
+                                             "itemID":  3364,
+                                             "price":  0,
+                                             "rawDisplayName":  "item",
+                                             "slot":  6
+                                         }
+                                     ],
+                           "summonerSpells":  {
+                                                  "summonerSpellOne":  {
+                                                                           "displayName":  "SummonerFlash"
+                                                                       },
+                                                  "summonerSpellTwo":  {
+                                                                           "displayName":  "SummonerDot"
+                                                                       }
+                                              },
+                           "team":  "CHAOS",
+                           "riotIdGameName":  "SyndraGod",
+                           "riotIdTagLine":  "BR1",
+                           "summonerName":  "SyndraGod"
+                       },
+                       {
+                           "championName":  "Kai\u0027Sa",
+                           "isBot":  false,
+                           "level":  11,
+                           "isDead":  false,
+                           "respawnTimer":  0.0,
+                           "position":  "BOTTOM",
+                           "rawChampionName":  "game_character_displayname_Kaisa",
+                           "scores":  {
+                                          "assists":  4,
+                                          "creepScore":  210.0,
+                                          "deaths":  5,
+                                          "kills":  4,
+                                          "wardScore":  0.09
+                                      },
+                           "items":  [
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Berserker\u0027s Greaves",
+                                             "itemID":  3006,
+                                             "price":  1100,
+                                             "rawDisplayName":  "item",
+                                             "slot":  0
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Kraken Slayer",
+                                             "itemID":  6672,
+                                             "price":  3100,
+                                             "rawDisplayName":  "item",
+                                             "slot":  1
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Guinsoo\u0027s Rageblade",
+                                             "itemID":  3124,
+                                             "price":  3300,
+                                             "rawDisplayName":  "item",
+                                             "slot":  2
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Nashor\u0027s Tooth",
+                                             "itemID":  3115,
+                                             "price":  3000,
+                                             "rawDisplayName":  "item",
+                                             "slot":  3
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Recurve Bow",
+                                             "itemID":  1043,
+                                             "price":  1000,
+                                             "rawDisplayName":  "item",
+                                             "slot":  4
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  true,
+                                             "count":  1,
+                                             "displayName":  "Health Potion",
+                                             "itemID":  2003,
+                                             "price":  50,
+                                             "rawDisplayName":  "item",
+                                             "slot":  5
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Warding Totem Trinket",
+                                             "itemID":  3340,
+                                             "price":  0,
+                                             "rawDisplayName":  "item",
+                                             "slot":  6
+                                         }
+                                     ],
+                           "summonerSpells":  {
+                                                  "summonerSpellOne":  {
+                                                                           "displayName":  "SummonerHeal"
+                                                                       },
+                                                  "summonerSpellTwo":  {
+                                                                           "displayName":  "SummonerFlash"
+                                                                       }
+                                              },
+                           "team":  "CHAOS",
+                           "riotIdGameName":  "KaiSaFan",
+                           "riotIdTagLine":  "BR1",
+                           "summonerName":  "KaiSaFan"
+                       },
+                       {
+                           "championName":  "Thresh",
+                           "isBot":  false,
+                           "level":  9,
+                           "isDead":  false,
+                           "respawnTimer":  0.0,
+                           "position":  "UTILITY",
+                           "rawChampionName":  "game_character_displayname_Thresh",
+                           "scores":  {
+                                          "assists":  14,
+                                          "creepScore":  48.0,
+                                          "deaths":  6,
+                                          "kills":  0,
+                                          "wardScore":  1.05
+                                      },
+                           "items":  [
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "World Atlas",
+                                             "itemID":  3865,
+                                             "price":  400,
+                                             "rawDisplayName":  "item",
+                                             "slot":  0
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Locket of the Iron Solari",
+                                             "itemID":  3190,
+                                             "price":  2200,
+                                             "rawDisplayName":  "item",
+                                             "slot":  1
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Knight\u0027s Vow",
+                                             "itemID":  3109,
+                                             "price":  2200,
+                                             "rawDisplayName":  "item",
+                                             "slot":  2
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Boots",
+                                             "itemID":  1001,
+                                             "price":  300,
+                                             "rawDisplayName":  "item",
+                                             "slot":  3
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  true,
+                                             "count":  1,
+                                             "displayName":  "Control Ward",
+                                             "itemID":  2055,
+                                             "price":  75,
+                                             "rawDisplayName":  "item",
+                                             "slot":  4
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  true,
+                                             "count":  1,
+                                             "displayName":  "Health Potion",
+                                             "itemID":  2003,
+                                             "price":  50,
+                                             "rawDisplayName":  "item",
+                                             "slot":  5
+                                         },
+                                         {
+                                             "canUse":  true,
+                                             "consumable":  false,
+                                             "count":  1,
+                                             "displayName":  "Farsight Alteration",
+                                             "itemID":  3364,
+                                             "price":  0,
+                                             "rawDisplayName":  "item",
+                                             "slot":  6
+                                         }
+                                     ],
+                           "summonerSpells":  {
+                                                  "summonerSpellOne":  {
+                                                                           "displayName":  "SummonerFlash"
+                                                                       },
+                                                  "summonerSpellTwo":  {
+                                                                           "displayName":  "SummonerDot"
+                                                                       }
+                                              },
+                           "team":  "CHAOS",
+                           "riotIdGameName":  "HookMaster",
+                           "riotIdTagLine":  "BR1",
+                           "summonerName":  "HookMaster"
+                       }
+                   ],
+    "events":  [
+
+               ]
+}
