@@ -10,6 +10,7 @@
 //! snapshot value verbatim — nothing is derived or counted down locally.
 
 use super::Pen;
+use crate::api::poller::Clock;
 use crate::app::App;
 use crate::model::snapshot::{LocalPlayerSnapshot, PlayerSnapshot, Snapshot, Team};
 use ratatui::Frame;
@@ -23,7 +24,7 @@ pub const UNKNOWN: &str = "?";
 /// latest snapshot, then the event ticker section. With no snapshot yet
 /// (lifecycle arrived first), only the headline draws — never a panic,
 /// whatever the frame size.
-pub fn render(frame: &mut Frame, app: &App) {
+pub fn render<C: Clock>(frame: &mut Frame, app: &App<C>) {
     let area = frame.area();
     if area.is_empty() {
         return;

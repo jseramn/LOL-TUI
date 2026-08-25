@@ -11,6 +11,7 @@ pub mod standby;
 pub mod status;
 pub mod ticker;
 
+use crate::api::poller::Clock;
 use crate::app::{App, Phase};
 use ratatui::Frame;
 use ratatui::layout::Rect;
@@ -18,11 +19,15 @@ use ratatui::widgets::Paragraph;
 
 /// Shell-level phase dispatch. Both branches clip to the frame area (never
 /// panic), preserving the resize guarantee exercised via `TestBackend`.
-pub fn render(frame: &mut Frame, app: &App) {
+/// The status line renders last so it owns the bottom row in EVERY view
+/// (ui spec R6). Generic over the clock seam (design D5) so tests can pin
+/// the last-update stamp.
+pub fn render<C: Clock>(frame: &mut Frame, app: &App<C>) {
     match app.phase() {
         Phase::NotInGame => standby_placeholder(frame),
         Phase::InGame { .. } => dashboard::render(frame, app),
     }
+    status::render(frame, app);
 }
 
 /// Standby placeholder: one silent line, no error output (ui spec R2).
