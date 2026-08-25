@@ -9,6 +9,10 @@
 
 use std::sync::mpsc;
 
+use crossterm::event::{
+    Event, KeyCode, KeyEvent, KeyEventKind, KeyEventState, KeyModifiers, MouseEvent,
+    MouseEventKind,
+};
 use tui_lol::api::error::TransientReason;
 use tui_lol::api::poller::{Clock, Lifecycle, PollMsg};
 use tui_lol::app::{App, Health, Phase};
@@ -180,4 +184,68 @@ fn fresh_snapshot_stamps_last_update_from_the_clock() {
 
     app.on_msg(PollMsg::Snapshot(snap(&["A"])));
     assert_eq!(app.last_update_millis(), Some(1_724_592_000_123));
+}
+
+// --- Input classification (task 3.2, events.rs; ui spec R1) -----------------
+
+use tui_lol::events::{ShellAction, classify_event};
+
+/// Builds a key event with an explicit kind — Windows terminals deliver both
+/// Press and Release, and only Press may act.
+fn key(code: KeyCode, kind: KeyEventKind) -> Event {
+    Event::Key(KeyEvent {
+        code,
+        modifiers: KeyModifiers::empty(),
+        kind,
+        state: KeyEventState::empty(),
+    })
+}
+
+#[test]
+fn q_press_quits() {
+    assert_eq!(
+        classify_event(&key(KeyCode::Char('q'), KeyEventKind::Press)),
+        Some(ShellAction::Quit)
+    );
+}
+
+#[test]
+fn escape_press_quits() {
+    assert_eq!(
+        classify_event(&key(KeyCode::Esc, KeyEventKind::Press)),
+        Some(ShellAction::Quit)
+    );
+}
+
+#[test]
+fn key_release_events_are_ignored() {
+    assert_eq!(classify_event(&key(KeyCode::Char('q'), KeyEventKind::Release)), None);
+    assert_eq!(classify_event(&key(KeyCode::Esc, KeyEventKind::Release)), None);
+}
+
+#[test]
+fn keys_other_than_the_quit_keys_do_not_quit() {
+    assert_eq!(classify_event(&key(KeyCode::Char('a'), KeyEventKind::Press)), None);
+    // The spec contract is lowercase `q` only.
+    assert_eq!(classify_event(&key(KeyCode::Char('Q'), KeyEventKind::Press)), None);
+}
+
+#[test]
+fn resize_events_carry_the_new_bounds() {
+    assert_eq!(
+        classify_event(&Event::Resize(80, 24)),
+        Some(ShellAction::Resize { width: 80, height: 24 })
+    );
+}
+
+#[test]
+fn unrelated_events_are_ignored() {
+    let click = Event::Mouse(MouseEvent {
+        kind: MouseEventKind::Moved,
+        column: 0,
+        row: 0,
+        modifiers: KeyModifiers::empty(),
+    });
+    assert_eq!(classify_event(&Event::FocusGained), None);
+    assert_eq!(classify_event(&click), None);
 }
