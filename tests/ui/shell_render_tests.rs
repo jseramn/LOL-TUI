@@ -23,10 +23,9 @@ fn row_text(buffer: &Buffer, y: u16) -> String {
 
 #[test]
 fn shrink_resize_redraws_within_new_bounds_without_panicking() {
-    let mut app = live_app();
+    let app = live_app();
     let mut terminal = Terminal::new(TestBackend::new(100, 30)).expect("test backend");
     terminal.draw(|frame| ui::render(frame, &app)).expect("initial frame");
-
     // Simulate the user shrinking the terminal window…
     terminal.backend_mut().resize(60, 20);
 
@@ -66,11 +65,7 @@ fn extreme_small_viewport_still_renders_both_phases_without_panics() {
     let frame = terminal.draw(|f| ui::render(f, &standby)).expect("tiny standby frame");
     assert_eq!(row_text(frame.buffer, 0).chars().next(), Some('W'));
 
-    let mut live = live_app();
+    let live = live_app();
     let frame = terminal.draw(|f| ui::render(f, &live)).expect("tiny live frame");
     assert_eq!(row_text(frame.buffer, 0).chars().next(), Some('L'));
-
-    // Silence the unused-mut lint while keeping one variable per phase.
-    drop(live);
-    drop(standby);
 }
