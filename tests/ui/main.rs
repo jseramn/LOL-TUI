@@ -5,3 +5,4 @@
 
 mod dashboard_tests;
 mod shell_render_tests;
+mod ticker_tests;
