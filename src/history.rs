@@ -83,6 +83,17 @@ impl<T: Copy, const N: usize> Default for RingBuffer<T, N> {
     }
 }
 
+impl<T, const N: usize> std::fmt::Debug for RingBuffer<T, N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Structural debug only: samples may be arbitrary non-Debug types.
+        f.debug_struct("RingBuffer")
+            .field("capacity", &N)
+            .field("head", &self.head)
+            .field("len", &self.len)
+            .finish()
+    }
+}
+
 /// The sole instantiation (design D4): 120 local-gold samples, one per
 /// accepted snapshot (~2 min at 1 Hz).
 pub type GoldHistory = RingBuffer<u64, 120>;

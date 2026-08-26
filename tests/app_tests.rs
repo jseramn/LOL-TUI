@@ -15,7 +15,9 @@ use crossterm::event::{
 use tui_lol::api::error::TransientReason;
 use tui_lol::api::poller::{Clock, Lifecycle, PollMsg};
 use tui_lol::app::{App, Health, Phase};
-use tui_lol::model::snapshot::{PlayerSnapshot, Snapshot};
+use tui_lol::model::snapshot::{
+    GameInfo, LocalPlayerSnapshot, PlayerSnapshot, Snapshot,
+};
 
 /// Hand-built player row; every field except the name stays absent so tests
 /// can distinguish snapshots purely by roster names.
@@ -287,4 +289,202 @@ fn unrelated_events_are_ignored() {
     });
     assert_eq!(classify_event(&Event::FocusGained), None);
     assert_eq!(classify_event(&click), None);
+}
+
+// --- Gold-history fold (task 2.5, viz:R8/S2+S3, design D4/D7) ----------------
+
+/// Snapshot with only identity + local gold set; roster/events irrelevant
+/// to the fold contract.
+fn gold_snap(mode: Option<&str>, time: Option<f64>, gold: Option<f64>) -> Snapshot {
+    Snapshot {
+        players: Vec::new(),
+        local: Some(LocalPlayerSnapshot {
+            champion: None,
+            level: None,
+            current_gold: gold,
+            stats: None,
+        }),
+        game: mode.map(|mode| GameInfo {
+            game_mode: Some(mode.to_owned()),
+            game_time: time,
+            map_name: None,
+        }),
+        events: Vec::new(),
+    }
+}
+
+fn window_of(app: &App) -> Vec<Option<u64>> {
+    app.gold_window().collect()
+}
+
+#[test]
+fn lifecycle_messages_never_touch_history() {
+    // D7: lifecycle carries no identity — it must not clear OR push.
+    let mut app = live_app();
+    app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
+    app.on_msg(PollMsg::Lifecycle(Lifecycle::NotInGame));
+    assert_eq!(window_of(&app), Vec::<Option<u64>>::new());
+}
+
+#[test]
+fn first_in_game_snapshot_initializes_history_with_one_sample() {
+    let mut app = live_app();
+    app.on_msg(PollMsg::Snapshot(Box::new(gold_snap(
+        Some("CLASSIC"),
+        Some(100.0),
+        Some(120.0),
+    ))));
+    assert_eq!(window_of(&app), vec![Some(120)]);
+}
+
+#[test]
+fn same_game_snapshots_append_oldest_to_newest() {
+    let mut app = live_app();
+    for time in [100.0f64, 101.0, 102.0] {
+        app.on_msg(PollMsg::Snapshot(Box::new(gold_snap(
+            Some("CLASSIC"),
+            Some(time),
+            Some(time * 10.0),
+        ))));
+    }
+    assert_eq!(window_of(&app), vec![Some(1000), Some(1010), Some(1020)]);
+}
+
+#[test]
+fn gold_samples_route_through_the_shared_truncation_policy() {
+    // D5 sole-path rule exercised end to end: exposed 195.7 must land as 195.
+    let mut app = live_app();
+    app.on_msg(PollMsg::Snapshot(Box::new(gold_snap(
+        Some("CLASSIC"),
+        Some(1.0),
+        Some(195.7),
+    ))));
+    assert_eq!(window_of(&app), vec![Some(195)]);
+}
+
+#[test]
+fn absent_local_gold_pushes_a_gap_not_a_value() {
+    // D6: absent-gold unifies with failed-poll gaps as "no observable value".
+    let mut app = live_app();
+    app.on_msg(PollMsg::Snapshot(Box::new(gold_snap(
+        Some("CLASSIC"),
+        Some(1.0),
+        Some(50.0),
+    ))));
+    app.on_msg(PollMsg::Snapshot(Box::new(gold_snap(
+        Some("CLASSIC"),
+        Some(2.0),
+        None,
+    ))));
+    assert_eq!(window_of(&app), vec![Some(50), None]);
+}
+
+#[test]
+fn transient_failure_in_game_pushes_a_gap() {
+    // viz:R8 spec — failed polls insert gaps, not points (D4).
+    let mut app = live_app();
+    app.on_msg(PollMsg::Snapshot(Box::new(gold_snap(
+        Some("CLASSIC"),
+        Some(1.0),
+        Some(50.0),
+    ))));
+    app.on_msg(PollMsg::Transient(TransientReason::Timeout));
+    assert_eq!(window_of(&app), vec![Some(50), None]);
+}
+
+#[test]
+fn snapshots_while_standby_do_not_feed_history() {
+    // History feeds the IN_GAME view only; a snapshot that arrives before
+    // any lifecycle announcement must not seed a phantom trend.
+    let mut app = App::new();
+    app.on_msg(PollMsg::Snapshot(Box::new(gold_snap(
+        Some("CLASSIC"),
+        Some(100.0),
+        Some(42.0),
+    ))));
+    assert_eq!(window_of(&app), Vec::<Option<u64>>::new());
+}
+
+#[test]
+fn notbound_round_trip_preserves_the_same_game_trend() {
+    // viz:R8/S2 — IN_GAME→NOT_IN_GAME→IN_GAME inside ONE game continues
+    // the pre-disconnect samples (identity survives; lifecycle never wipes).
+    let mut app = live_app();
+    for time in [100.0f64, 101.0] {
+        app.on_msg(PollMsg::Snapshot(Box::new(gold_snap(
+            Some("CLASSIC"),
+            Some(time),
+            Some(time),
+        ))));
+    }
+    app.on_msg(PollMsg::Lifecycle(Lifecycle::NotInGame));
+    app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
+    app.on_msg(PollMsg::Snapshot(Box::new(gold_snap(
+        Some("CLASSIC"),
+        Some(105.0),
+        Some(105.0),
+    ))));
+    assert_eq!(window_of(&app), vec![Some(100), Some(101), Some(105)]);
+}
+
+#[test]
+fn different_game_resets_then_pushes_only_the_new_sample() {
+    // viz:R8/S3 — first snapshot of a NEW game leaves exactly one sample.
+    let mut app = live_app();
+    for time in [600.0f64, 601.0] {
+        app.on_msg(PollMsg::Snapshot(Box::new(gold_snap(
+            Some("CLASSIC"),
+            Some(time),
+            Some(time),
+        ))));
+    }
+    app.on_msg(PollMsg::Snapshot(Box::new(gold_snap(
+        Some("CLASSIC"),
+        Some(12.0),
+        Some(77.0),
+    ))));
+    assert_eq!(window_of(&app), vec![Some(77)]);
+}
+
+#[test]
+fn game_mode_change_resets_the_trend() {
+    let mut app = live_app();
+    app.on_msg(PollMsg::Snapshot(Box::new(gold_snap(
+        Some("CLASSIC"),
+        Some(600.0),
+        Some(500.0),
+    ))));
+    app.on_msg(PollMsg::Snapshot(Box::new(gold_snap(
+        Some("ARAM"),
+        Some(601.0),
+        Some(9.0),
+    ))));
+    assert_eq!(window_of(&app), vec![Some(9)]);
+}
+
+#[test]
+fn degraded_snapshot_without_game_info_appends_instead_of_resetting() {
+    // D1 conservative default: a payload missing gameStats entirely is
+    // inconclusive — it must NEVER wipe an existing trend.
+    let mut app = live_app();
+    for time in [100.0f64, 101.0] {
+        app.on_msg(PollMsg::Snapshot(Box::new(gold_snap(
+            Some("CLASSIC"),
+            Some(time),
+            Some(time),
+        ))));
+    }
+    let degraded = Snapshot {
+        players: Vec::new(),
+        local: Some(LocalPlayerSnapshot {
+            champion: None,
+            level: None,
+            current_gold: Some(999.0),
+            stats: None,
+        }),
+        game: None,
+        events: Vec::new(),
+    };
+    app.on_msg(PollMsg::Snapshot(Box::new(degraded)));
+    assert_eq!(window_of(&app), vec![Some(100), Some(101), Some(999)]);
 }

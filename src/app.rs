@@ -16,6 +16,7 @@
 
 use crate::api::error::TransientReason;
 use crate::api::poller::{Clock, Lifecycle, PollMsg, SystemClock};
+use crate::history::{Continuation, GameIdentity, GoldHistory, chart_u64, classify};
 use crate::model::snapshot::Snapshot;
 use std::sync::mpsc::Receiver;
 
@@ -48,6 +49,12 @@ pub struct App<C: Clock = SystemClock> {
     phase: Phase,
     snapshot: Option<Snapshot>,
     last_update_millis: Option<u64>,
+    /// Local-gold trend (design D4): fed ONLY at snapshot-fold time while
+    /// in game; lifecycle messages never touch it; failed polls leave gaps.
+    history: GoldHistory,
+    /// Identity of the last folded snapshot's game (design D1/D7). Persists
+    /// across NotInGame so a same-game reconnect continues the trend.
+    identity: Option<GameIdentity>,
 }
 
 impl App<SystemClock> {
@@ -71,6 +78,8 @@ impl<C: Clock> App<C> {
             phase: Phase::NotInGame,
             snapshot: None,
             last_update_millis: None,
+            history: GoldHistory::new(),
+            identity: None,
         }
     }
 
@@ -90,10 +99,18 @@ impl<C: Clock> App<C> {
         self.last_update_millis
     }
 
+    /// Iterates the retained local-gold window oldest → newest. Gap samples
+    /// (failed polls, absent gold) surface as `None`; the sparkline renders
+    /// from exactly this view (viz:R8/S1, design D4).
+    pub fn gold_window(&self) -> impl Iterator<Item = Option<u64>> + '_ {
+        self.history.iter()
+    }
+
     /// Folds one poller message into the FSM.
     ///
     /// Classification mirrors the design error-taxonomy table; see the
-    /// module diagram for the transition set.
+    /// module diagram for the transition set. History folding happens only
+    /// here (fold time), never in the poller thread (design D4).
     pub fn on_msg(&mut self, msg: PollMsg) {
         match msg {
             PollMsg::Lifecycle(Lifecycle::InGame) => {
@@ -102,11 +119,17 @@ impl<C: Clock> App<C> {
                 };
             }
             // Connection refused / port unbound is the ONLY game-ender.
+            // Deliberately leaves `identity` intact: a reconnect into the
+            // SAME game must keep its trend (viz:R8/S2, design D7).
             PollMsg::Lifecycle(Lifecycle::NotInGame) => {
                 self.phase = Phase::NotInGame;
             }
             PollMsg::Snapshot(snapshot) => {
-                self.snapshot = Some(*snapshot);
+                let snapshot = *snapshot;
+                if matches!(self.phase, Phase::InGame { .. }) {
+                    self.fold_history(&snapshot);
+                }
+                self.snapshot = Some(snapshot);
                 self.last_update_millis = Some(self.clock.now_millis());
                 // Fresh data clears staleness, but never resurrects a game
                 // that NotBound already ended.
@@ -116,12 +139,43 @@ impl<C: Clock> App<C> {
             }
             PollMsg::Transient(reason) => {
                 // Outside a game a transient failure is meaningless noise —
-                // keep standby silent (ui spec R2).
+                // keep standby silent (ui spec R2). Inside a game the failed
+                // cycle records an explicit GAP in the gold trend (design D4).
                 if let Phase::InGame { health } = &mut self.phase {
                     *health = Health::Degraded(reason);
+                    self.history.push(None);
                 }
             }
         }
+    }
+
+    /// Folds one accepted snapshot into the gold history (design D1/D7):
+    /// classify against the previous identity first — a different game
+    /// clears the buffer — then push this snapshot's converted sample.
+    fn fold_history(&mut self, snapshot: &Snapshot) {
+        let next_identity = snapshot
+            .game
+            .as_ref()
+            .map(GameIdentity::from_game_info)
+            .unwrap_or(GameIdentity {
+                game_time: None,
+                game_mode: None,
+            });
+        if let Some(prev) = &self.identity {
+            if classify(prev, &next_identity) == Continuation::DifferentGame {
+                self.history.clear();
+            }
+        }
+        self.identity = Some(next_identity);
+
+        // Sole conversion path (design D5); absent local/gold unifies with
+        // poll gaps as `None` (design D6).
+        let sample = snapshot
+            .local
+            .as_ref()
+            .and_then(|local| local.current_gold)
+            .and_then(chart_u64);
+        self.history.push(sample);
     }
 
     /// Drains every message currently buffered on `rx` (latest-wins per
