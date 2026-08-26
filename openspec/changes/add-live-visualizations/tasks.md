@@ -85,8 +85,8 @@ Pinned guarantees: `live-dashboard-ui` R6 notice/status unchanged; `live-client-
 
 ## Phase 6: Verification & Docs (slice S11)
 
-- [ ] 6.1 Full pass: CT green offline; `cargo fmt` clean; `cargo clippy -j 1 -- -D warnings` under canonical env prefix. Audit greps: zero runtime glyph construction, zero derived timers/countdowns, gold rendered local-only.
-- [ ] 6.2 Extend `docs/manual-verify.md`: Windows Terminal AND classic-conhost smoke items exercising all SIX widget families, resize walk-down across tiers, and reconnect-same-game trend continuation (viz:R10/S2; proposal success criteria).
+- [x] 6.1 Full pass: CT green offline; `cargo fmt` clean; `cargo clippy -j 1 -- -D warnings` under canonical env prefix. Audit greps: zero runtime glyph construction, zero derived timers/countdowns, gold rendered local-only.
+- [x] 6.2 Extend `docs/manual-verify.md`: Windows Terminal AND classic-conhost smoke items exercising all SIX widget families, resize walk-down across tiers, and reconnect-same-game trend continuation (viz:R10/S2; proposal success criteria).
 
 ---
 

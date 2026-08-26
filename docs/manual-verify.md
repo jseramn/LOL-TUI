@@ -154,6 +154,94 @@ payloads contain summoner names (PII).
 
 ---
 
+## 11. Live dashboard visualizations (add-live-visualizations)
+
+Offline tests prove buffer purity, scaling math, tier boundaries, and
+placeholder behavior against fixtures; what they cannot prove is how the six
+chart families LOOK and DEGRADE on real console hosts with real fonts. Run
+every step here in **both** hosts (Windows Terminal AND classic conhost),
+during a live custom game, at a window of at least 80×24 unless the step says
+otherwise.
+
+### 11.1 All six widget families render
+
+- [ ] **CS bars** — each player panel has one horizontal bar row beneath it;
+      the highest creep score on screen fills its whole track while lower
+      scores render proportionally shorter (shared maximum, viz:R3/S1); a
+      player whose creep score is absent shows a `CS ?` row instead of an
+      empty bar (viz:R3/S2).
+- [ ] **Level bars** — fixed 1–18 scale: a level 1 champion draws a
+      near-empty track and level 18 draws full; an out-of-range value (e.g.
+      25) clamps to a full track without any glitch or crash; an absent
+      level renders `Lv?` (viz:R4/S1–S2).
+- [ ] **K/D/A mini-bars** — three short segments per player: kills green,
+      deaths red, assists blue, each scaled by its own metric's shared
+      maximum; a player with 0 deaths still shows all three segments and NO
+      derived ratio (e.g. (K+A)/D) appears anywhere in the frame
+      (viz:R5/S2–S3).
+- [ ] **Inventory fill bar** — a 6-cell strip of dark-shade (filled) and
+      light-shade (empty) cells per player; a full build with trinket shows
+      fewer than 6 filled cells because the trinket slot is excluded;
+      null slots render empty; a wholly absent items list renders `?`
+      (viz:R6/S1–S2).
+- [ ] **Local HP / Power gauges** — two blocked-segment gauges labeled
+      `LOCAL HP <pct>%` and `LOCAL Power <pct>%` whose percentages match
+      your current/max values in the game HUD (e.g. 2100/3000 ⇒ 70%);
+      non-local players never show gauges; if a stat is missing, THAT gauge
+      alone shows `LOCAL … ?` while the other renders normally
+      (viz:R7/S1–S2).
+- [ ] **Gold sparkline** — a `GOLD` trend row draws once at least two real
+      samples exist; before that it explicitly reads
+      `GOLD warming up (n/120)` instead of a flat line; failed polls leave
+      visible light-shade gaps inside the trend rather than invented points
+      (viz:R8/S1).
+
+### 11.2 Conhost glyph smoke (classic conhost)
+
+The offline suite proves every drawn codepoint sits in box-drawing/block
+ranges that classic conhost can render; this step proves the HOST FONT
+actually does:
+
+- [ ] In a plain conhost window, every chart symbol renders as a real block
+      or box character: solid bars, the shaded inventory cells, and the
+      eight-level sparkline ramp — none of them appear as hollow boxes,
+      question-mark-in-a-box replacement glyphs, or blanks (viz:R10/S2).
+- [ ] No Braille dots or sextant/octant shapes appear anywhere — the app
+      never draws outside its whitelisted ranges by construction.
+- [ ] On a 16-color host (conhost default palette), the K/D/A segments may
+      degrade to plainer colors but all three remain visible
+      (viz:R5/S3).
+
+### 11.3 Minimum viewport and resize walk-down across tiers
+
+Start at ≥ 80×24 with all charts visible, then shrink the window HEIGHT one
+band at a time and confirm the degradation matrix (viz:R9/S1):
+
+- [ ] Below 24 rows the gold sparkline hides FIRST; below 20 the K/D/A
+      mini-bars go; below 18 the inventory strips; below 15 the level bars;
+      below 13 the CS bars — always in that strict order.
+- [ ] The `LOCAL HP` / `LOCAL Power` gauges NEVER hide at any height (they
+      belong to no tier).
+- [ ] The events ticker compresses before anything else loses space, and the
+      Riot notice stays on the LAST row at every size (ui:R6).
+- [ ] Shrinking WIDTH below roughly 40 columns hides ALL chart families at
+      any height; the gauges and status row remain.
+- [ ] Growing back up restores families in the reverse order with no stale
+      artifacts or garbled rows.
+- [ ] At the 80×12 minimum viewport the status row is still last, fully
+      visible, and unoverlapped (viz:R2/S2).
+
+### 11.4 Reconnect same-game trend continuation
+
+- [ ] With the gold trend drawn, drop and restore the connection path while
+      staying in the SAME game: the trend CONTINUES across the pre-disconnect
+      samples (failed polls show as gaps, never a reset) (viz:R8/S2).
+- [ ] Leave and enter a DIFFERENT game: the gold trend resets — the row
+      returns to `GOLD warming up (n/120)` until two fresh samples arrive
+      (viz:R8/S3).
+
+---
+
 **Result**: record pass/fail per host (Windows Terminal / conhost). Any fail
 is a defect against the linked spec scenario — file it with the host name,
 step number, and what diverged.
