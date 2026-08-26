@@ -15,9 +15,7 @@ use crossterm::event::{
 use tui_lol::api::error::TransientReason;
 use tui_lol::api::poller::{Clock, Lifecycle, PollMsg};
 use tui_lol::app::{App, Health, Phase};
-use tui_lol::model::snapshot::{
-    GameInfo, LocalPlayerSnapshot, PlayerSnapshot, Snapshot,
-};
+use tui_lol::model::snapshot::{GameInfo, LocalPlayerSnapshot, PlayerSnapshot, Snapshot};
 
 /// Hand-built player row; every field except the name stays absent so tests
 /// can distinguish snapshots purely by roster names.
