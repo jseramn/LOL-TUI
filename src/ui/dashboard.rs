@@ -32,10 +32,13 @@ pub(crate) fn render<C: Clock>(frame: &mut Frame, app: &App<C>, regions: &Region
     let Some(snapshot) = app.snapshot() else {
         return;
     };
-    draw_snapshot(snapshot, regions, frame);
+    draw_snapshot(snapshot, app.gold_window(), regions, frame);
 }
 
-fn draw_snapshot(snapshot: &Snapshot, regions: &Regions, frame: &mut Frame) {
+fn draw_snapshot<G>(snapshot: &Snapshot, gold_window: G, regions: &Regions, frame: &mut Frame)
+where
+    G: Iterator<Item = Option<u64>>,
+{
     let mut panel_lines: Vec<String> = Vec::new();
     for (header, team) in [("Team ORDER", Team::Order), ("Team CHAOS", Team::Chaos)] {
         let members: Vec<&PlayerSnapshot> = snapshot
@@ -68,10 +71,22 @@ fn draw_snapshot(snapshot: &Snapshot, regions: &Regions, frame: &mut Frame) {
 
     // Local-player strip (ui spec R4): the ONLY surface that ever renders
     // gold. `activePlayer` absent from the payload → no strip at all. The
-    // strip's second region row stays an empty placeholder until the gauge
-    // widgets land (task 4.x).
+    // band's first row keeps the legacy text line byte-for-byte; the rows
+    // below it host the gauge/sparkline widgets (tasks 4.6–4.7).
     if let Some(local) = &snapshot.local {
-        draw_lines(frame, regions.local, &[local_line(local)]);
+        let legacy_row = Rect {
+            height: regions.local.height.min(1),
+            ..regions.local
+        };
+        draw_lines(frame, legacy_row, &[local_line(local)]);
+        if regions.local.height > 1 {
+            let widget_rows = Rect {
+                y: regions.local.y + 1,
+                height: regions.local.height - 1,
+                ..regions.local
+            };
+            super::local_strip::render(frame, local, gold_window, widget_rows);
+        }
     }
 
     // Objective/kill ticker (ui spec R5) in its own compressible band.

@@ -25,19 +25,20 @@ use ratatui::widgets::Paragraph;
 
 /// Vertical constraint tuple of the live view's four upper regions (design
 /// D2): one headline row, at least five body rows for the team columns, a
-/// two-row local strip (its second row stays an empty placeholder until the
-/// gauge/sparkline widgets land in task 4.x), and a compressible ticker
-/// band. The fifth D2 constraint — `Length(1)` status, LAST — is enforced
-/// by reserving that row before the solver runs; see [`split_regions`].
+/// four-row local strip (legacy text line + two blocked-segment gauges +
+/// the gold-trend row the sparkline fills in task 4.7), and a compressible
+/// ticker band. The fifth D2 constraint — `Length(1)` status, LAST — is
+/// enforced by reserving that row before the solver runs; see
+/// [`split_regions`].
 const REGION_CONSTRAINTS: [Constraint; 4] = [
     Constraint::Length(1),
     Constraint::Min(5),
-    Constraint::Length(2),
+    Constraint::Length(4),
     Constraint::Min(1),
 ];
 
-/// Smallest height the D2 tuple can satisfy exactly: 1 + 5 + 2 + 1.
-const MIN_REGIONS_HEIGHT: u16 = 9;
+/// Smallest height the D2 tuple can satisfy exactly: 1 + 5 + 4 + 1.
+const MIN_REGIONS_HEIGHT: u16 = 11;
 
 /// The live view's disjoint vertical bands, top-to-bottom. `status` is
 /// always the frame's final row; the other four never intersect it or each
@@ -85,7 +86,7 @@ pub(crate) fn split_regions(area: Rect) -> Regions {
     }
     let header = take_rows(&mut rest, 1);
     let body = take_rows(&mut rest, 5);
-    let local = take_rows(&mut rest, 2);
+    let local = take_rows(&mut rest, 4);
     let remaining = rest.height;
     let ticker = take_rows(&mut rest, remaining);
     Regions {
