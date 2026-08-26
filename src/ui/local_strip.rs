@@ -64,12 +64,18 @@ pub fn gauge_ratio(current: Option<f64>, max: Option<f64>) -> Option<f64> {
 }
 
 /// Renders the local-strip widget rows into `area`: the blocked-segment HP
-/// and power gauges (viz:R7), then the gold trend (viz:R8) fed from the
-/// app-side ring buffer through `App::gold_window` (design D4). Rows clip
-/// silently when the band shrinks below the full contract; an empty area is
-/// a no-op.
-pub(super) fn render<I>(frame: &mut Frame, local: &LocalPlayerSnapshot, gold_window: I, area: Rect)
-where
+/// and power gauges (viz:R7) — which belong to NO degradation tier and
+/// render at every size — then, when the viewport tier keeps it visible,
+/// the gold trend (viz:R8) fed from the app-side ring buffer through
+/// `App::gold_window` (design D4). Rows clip silently when the band shrinks
+/// below the full contract; an empty area is a no-op.
+pub(super) fn render<I>(
+    frame: &mut Frame,
+    local: &LocalPlayerSnapshot,
+    gold_window: I,
+    area: Rect,
+    sparkline_visible: bool,
+) where
     I: Iterator<Item = Option<u64>>,
 {
     if area.is_empty() {
@@ -100,6 +106,9 @@ where
         stats.and_then(|s| s.power),
         stats.and_then(|s| s.power_max),
     );
+    if !sparkline_visible {
+        return;
+    }
     let gold_row = Rect {
         y: rest.y + 1,
         height: 1,

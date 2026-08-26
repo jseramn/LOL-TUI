@@ -2,12 +2,16 @@
 //!
 //! This module hosts the shell renderer ([`render`]) that dispatches per
 //! lifecycle phase. The idle branch keeps the full-frame [`standby`]
-//! paragraph. The live branch splits the frame into disjoint region rects
-//! via [`split_regions`] (design D2), routes each region to its owner view
-//! ([`dashboard`] renders header/body/local and drives the [`ticker`]), and
-//! draws the status line LAST so it owns the bottom row in EVERY view —
-//! making the ui spec R6 notice guarantee structural rather than
-//! convention: no widget ever receives a rect containing the status row.
+//! paragraph. The live branch computes a [`LiveLayout`] through
+//! [`select_layout`] — a PURE function of the frame rectangle (designs
+//! D9/D10): it splits the frame into disjoint region rects via
+//! [`split_regions`] (design D2) and derives which chart families the
+//! current viewport can still host (the D9 degradation matrix). Each
+//! region routes to its owner view ([`dashboard`] renders header/body/
+//! local and drives the [`ticker`]), and the status line is drawn LAST so
+//! it owns the bottom row in EVERY view — making the ui spec R6 notice
+//! guarantee structural rather than convention: no widget ever receives a
+//! rect containing the status row.
 
 pub mod dashboard;
 pub mod local_strip;
@@ -43,12 +47,109 @@ const MIN_REGIONS_HEIGHT: u16 = 11;
 /// The live view's disjoint vertical bands, top-to-bottom. `status` is
 /// always the frame's final row; the other four never intersect it or each
 /// other, which is what makes the R6 guarantee structural (viz spec R2).
-pub(crate) struct Regions {
-    pub(crate) header: Rect,
-    pub(crate) body: Rect,
-    pub(crate) local: Rect,
-    pub(crate) ticker: Rect,
-    pub(crate) status: Rect,
+pub struct Regions {
+    pub header: Rect,
+    pub body: Rect,
+    pub local: Rect,
+    pub ticker: Rect,
+    pub status: Rect,
+}
+
+/// Viewport width below which EVERY chart family hides, whatever the
+/// height (design D9: `width < 40` ⇒ no charts). Gauges are unaffected —
+/// they belong to no tier.
+pub const MIN_CHART_WIDTH: u16 = 40;
+
+/// Smallest height that still shows the CS bars (design D9 tier table).
+const CS_MIN_HEIGHT: u16 = 13;
+/// Smallest height that keeps the level bars (D9).
+const LEVEL_MIN_HEIGHT: u16 = 15;
+/// Smallest height that keeps the inventory strip (D9).
+const INVENTORY_MIN_HEIGHT: u16 = 18;
+/// Smallest height that keeps the K/D/A mini-bars (D9).
+const KDA_MIN_HEIGHT: u16 = 20;
+/// Height at which every family — including the gold sparkline — is
+/// visible (D9; viz spec R9 pins "all charts visible at ≥ 80×24").
+const SPARKLINE_MIN_HEIGHT: u16 = 24;
+
+/// Which chart families the current viewport may draw. Gauges are NOT
+/// members: the degradation matrix gives them no hide tier (viz spec R9
+/// omits them ⇒ always-on), so there is no flag that could ever turn them
+/// off. The five flags are ordered by the spec's hide priority — the
+/// sparkline hides FIRST and the CS bars hide LAST.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ChartSet {
+    pub cs: bool,
+    pub level: bool,
+    pub inventory: bool,
+    pub kda: bool,
+    pub sparkline: bool,
+}
+
+impl ChartSet {
+    /// No chart family visible (height ≤ 12, or width < [`MIN_CHART_WIDTH`]).
+    pub const NONE: Self = Self {
+        cs: false,
+        level: false,
+        inventory: false,
+        kda: false,
+        sparkline: false,
+    };
+
+    /// Every chart family visible (the ≥ 24-row full-layout viewport).
+    pub const ALL: Self = Self {
+        cs: true,
+        level: true,
+        inventory: true,
+        kda: true,
+        sparkline: true,
+    };
+}
+
+/// The pure result of the D9 degradation matrix for one frame: disjoint
+/// region rects plus the set of chart families the viewport can host.
+pub struct LiveLayout {
+    pub areas: Regions,
+    pub visible: ChartSet,
+}
+
+/// Computes the live view's layout from the frame rectangle ALONE (designs
+/// D9/D10): regions via [`split_regions`], chart visibility via the D9
+/// tier table. No terminal, no app state — the same rectangle always
+/// yields the same result, which is what makes the matrix offline-sweepable
+/// (viz:R9).
+///
+/// Tier table by HEIGHT (families accumulate as rows grow): ≤ 12 none ·
+/// 13–14 +CS · 15–17 +level · 18–19 +inventory · 20–23 +K/D/A · ≥ 24 all
+/// (+ gold sparkline). A WIDTH below [`MIN_CHART_WIDTH`] hides every chart
+/// family. Hiding stays monotonic in both dimensions, and strictly follows
+/// the spec priority order: sparkline → K/D/A → inventory → level → CS.
+/// The ticker compresses first (`Min(1)`); the status row belongs to no
+/// tier and never hides.
+pub fn select_layout(area: Rect) -> LiveLayout {
+    let mut visible = ChartSet::ALL;
+    if area.height < SPARKLINE_MIN_HEIGHT {
+        visible.sparkline = false;
+    }
+    if area.height < KDA_MIN_HEIGHT {
+        visible.kda = false;
+    }
+    if area.height < INVENTORY_MIN_HEIGHT {
+        visible.inventory = false;
+    }
+    if area.height < LEVEL_MIN_HEIGHT {
+        visible.level = false;
+    }
+    if area.height < CS_MIN_HEIGHT {
+        visible.cs = false;
+    }
+    if area.width < MIN_CHART_WIDTH {
+        visible = ChartSet::NONE;
+    }
+    LiveLayout {
+        areas: split_regions(area),
+        visible,
+    }
 }
 
 /// Splits `area` into the live view's regions (design D2).
@@ -129,9 +230,9 @@ pub fn render<C: Clock>(frame: &mut Frame, app: &App<C>) {
             status::render(frame, app);
         }
         Phase::InGame { .. } => {
-            let regions = split_regions(area);
-            dashboard::render(frame, app, &regions);
-            status::render_into(frame, app, regions.status);
+            let layout = select_layout(area);
+            dashboard::render(frame, app, &layout);
+            status::render_into(frame, app, layout.areas.status);
         }
     }
 }
