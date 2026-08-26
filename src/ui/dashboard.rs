@@ -16,6 +16,7 @@ use crate::api::poller::Clock;
 use crate::app::App;
 use crate::model::snapshot::{LocalPlayerSnapshot, PlayerSnapshot, Snapshot, Team};
 use ratatui::Frame;
+use ratatui::layout::Rect;
 
 /// Explicit marker for a field the API did not expose. Absence is never
 /// rendered as a fabricated value (ui spec: degradation is per field).
@@ -51,6 +52,19 @@ fn draw_snapshot(snapshot: &Snapshot, regions: &Regions, frame: &mut Frame) {
         }
     }
     draw_lines(frame, regions.body, &panel_lines);
+
+    // Team-column visualizations (viz spec R3–R6): additive rows BELOW the
+    // legacy text panels inside the same body band, clipped at its edge.
+    // The text content above is untouched — standing panel pins hold.
+    let used_rows = panel_lines.len().min(regions.body.height as usize) as u16;
+    if regions.body.height > used_rows {
+        let viz_area = Rect {
+            y: regions.body.y + used_rows,
+            height: regions.body.height - used_rows,
+            ..regions.body
+        };
+        super::team::render(frame, snapshot, viz_area);
+    }
 
     // Local-player strip (ui spec R4): the ONLY surface that ever renders
     // gold. `activePlayer` absent from the payload → no strip at all. The

@@ -70,8 +70,8 @@ Pinned guarantees: `live-dashboard-ui` R6 notice/status unchanged; `live-client-
 
 ## Phase 4: Widgets — one task per family (slices S5–S9, S8′)
 
-- [ ] 4.1 FIRST widget task: verify ratatui 0.30.2 symbol-override signatures (BarChart/Sparkline/LineGauge custom-symbol params) against the vendored source; document the actual API surface used in module docs; record fallback (inline glyph strips) if signatures diverge from design assumption (design open-question closure).
-- [ ] 4.2 RED/GREEN CS bars `src/ui/team.rs`: one horizontal BarChart per player; `.max()` = highest CS among ALL visible players (global); max 0 ⇒ empty bars as true zeros (never fabricated); absent creepScore ⇒ `?` text row (viz:R3/S1, S2).
+- [x] 4.1 FIRST widget task: verify ratatui 0.30.2 symbol-override signatures (BarChart/Sparkline/LineGauge custom-symbol params) against the vendored source; document the actual API surface used in module docs; record fallback (inline glyph strips) if signatures diverge from design assumption (design open-question closure).
+- [x] 4.2 RED/GREEN CS bars `src/ui/team.rs`: one horizontal BarChart per player; `.max()` = highest CS among ALL visible players (global); max 0 ⇒ empty bars as true zeros (never fabricated); absent creepScore ⇒ `?` text row (viz:R3/S1, S2).
 - [ ] 4.3 RED/GREEN level bars: fixed scale `(level−1)/17` clamp [0,1] — level 1 near-empty, 18 full, 25 clamps full with no panic; absent level ⇒ `?` (viz:R4/S1, S2).
 - [ ] 4.4 RED/GREEN K/D/A mini-bars: three glyph spans green/red/blue, each scaled by ITS metric's shared max across visible players; derived ratios (e.g. (K+A)/D) never computed nor displayed; 16-color host degrades palette but keeps all three bars (viz:R5/S2, S3).
 - [ ] 4.5 RED/GREEN inventory fill `src/ui/team.rs`: 6-cell `▓`/`░` strip counting occupied slots at index ≠ 6 (index 6 = trinket, excluded per spec — cannot prove trinket presence); null/absent slots render empty; wholly absent items list ⇒ `?` (viz:R6/S1, S2).
