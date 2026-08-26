@@ -6,5 +6,7 @@
 pub mod api;
 pub mod app;
 pub mod events;
+pub mod glyphs;
+pub mod history;
 pub mod model;
 pub mod ui;

@@ -7,8 +7,10 @@
 //! clipping cursor ([`Pen`]).
 
 pub mod dashboard;
+pub mod local_strip;
 pub mod standby;
 pub mod status;
+pub mod team;
 pub mod ticker;
 
 use crate::api::poller::Clock;
