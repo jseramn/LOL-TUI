@@ -7,10 +7,11 @@
 //! An empty event list renders an explicit empty-state message instead of
 //! failing.
 
-use super::Pen;
 use super::dashboard::UNKNOWN;
+use super::draw_lines;
 use crate::model::snapshot::GameEvent;
 use ratatui::Frame;
+use ratatui::layout::Rect;
 
 /// Section header introducing the ticker rows.
 pub(crate) const EVENTS_HEADER: &str = "EVENTS";
@@ -18,17 +19,18 @@ pub(crate) const EVENTS_HEADER: &str = "EVENTS";
 /// Explicit empty-state for a snapshot with zero events (ui spec R5/S2).
 pub(crate) const EMPTY_EVENTS: &str = "No match events yet.";
 
-/// Draws the ticker section under the player panels, sharing the view's
-/// clipping cursor.
-pub(crate) fn render(pen: &mut Pen, events: &[GameEvent], frame: &mut Frame) {
-    pen.line(EVENTS_HEADER.to_owned(), frame);
+/// Draws the ticker section into its assigned region: the header row, then
+/// one line per event, clipped at the band boundary.
+pub(crate) fn render(events: &[GameEvent], area: Rect, frame: &mut Frame) {
+    let mut lines = vec![EVENTS_HEADER.to_owned()];
     if events.is_empty() {
-        pen.line(EMPTY_EVENTS.to_owned(), frame);
-        return;
+        lines.push(EMPTY_EVENTS.to_owned());
+    } else {
+        for event in events {
+            lines.push(event_line(event));
+        }
     }
-    for event in events {
-        pen.line(event_line(event), frame);
-    }
+    draw_lines(frame, area, &lines);
 }
 
 /// Formats one event line. The exposed time always leads the line so scan

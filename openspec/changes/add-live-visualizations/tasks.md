@@ -64,9 +64,9 @@ Pinned guarantees: `live-dashboard-ui` R6 notice/status unchanged; `live-client-
 
 ## Phase 3: Region-Layout Shell (slice S2 — behavior-preserving)
 
-- [ ] 3.1 RED `tests/ui/shell_render_tests.rs` extensions: 80×24 frame shows regions top-to-bottom header/body/local/ticker/status with Riot notice filling the final row (viz:R2/S1); 80×12 keeps status row last, visible, unoverlapped (viz:R2/S2). Run CT → RED.
-- [ ] 3.2 GREEN `src/ui/mod.rs`: vertical `Layout` `[Length(1) header, Min(5) body, Length(2–3) local, Min(1) ticker, Length(1) status]` — status LAST; disjoint Rects make ui:R6 structural (D2). Retire `Pen` only after ticker/status migrate.
-- [ ] 3.3 GREEN `src/ui/dashboard.rs`, `ticker.rs`, `status.rs`: render into assigned Rects; textual content identical to today — existing dashboard/ticker/status tests stay green UNWEAKENED. Test: CT green.
+- [x] 3.1 RED `tests/ui/shell_render_tests.rs` extensions: 80×24 frame shows regions top-to-bottom header/body/local/ticker/status with Riot notice filling the final row (viz:R2/S1); 80×12 keeps status row last, visible, unoverlapped (viz:R2/S2). Run CT → RED.
+- [x] 3.2 GREEN `src/ui/mod.rs`: vertical `Layout` `[Length(1) header, Min(5) body, Length(2–3) local, Min(1) ticker, Length(1) status]` — status LAST; disjoint Rects make ui:R6 structural (D2). Retire `Pen` only after ticker/status migrate.
+- [x] 3.3 GREEN `src/ui/dashboard.rs`, `ticker.rs`, `status.rs`: render into assigned Rects; textual content identical to today — existing dashboard/ticker/status tests stay green UNWEAKENED. Test: CT green.
 
 ## Phase 4: Widgets — one task per family (slices S5–S9, S8′)
 

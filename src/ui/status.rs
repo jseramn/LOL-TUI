@@ -17,9 +17,10 @@ use ratatui::{Frame, widgets::Paragraph};
 /// The mandatory non-endorsement notice, rendered verbatim in both views.
 pub const RIOT_NOTICE: &str = "This product is not endorsed by Riot Games.";
 
-/// Draws the bottom-row status line. Drawn LAST by the shell dispatcher so
-/// it wins the row in whichever view rendered above it; clips safely at any
-/// viewport size.
+/// Draws the bottom-row status line, computing the row itself. This is the
+/// standby path's entry point (the idle view keeps its full-frame
+/// paragraph and the status line claims the last row afterwards); the live
+/// view calls [`render_into`] with the shell's reserved region instead.
 pub(crate) fn render<C: Clock>(frame: &mut Frame, app: &App<C>) {
     let area = frame.area();
     if area.is_empty() {
@@ -31,6 +32,16 @@ pub(crate) fn render<C: Clock>(frame: &mut Frame, app: &App<C>) {
         width: area.width,
         height: 1,
     };
+    render_into(frame, app, row);
+}
+
+/// Draws the status line into an explicitly assigned single-row rect — the
+/// shell's reserved final band ([`super::Regions.status`]) during IN_GAME.
+/// Drawn LAST by the shell dispatcher; clips safely at any viewport size.
+pub(crate) fn render_into<C: Clock>(frame: &mut Frame, app: &App<C>, row: Rect) {
+    if row.is_empty() {
+        return;
+    }
     frame.render_widget(Paragraph::new(status_text(app)), row);
 }
 
