@@ -10,10 +10,12 @@
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 use ratatui::buffer::Buffer;
+use tui_lol::api::error::TransientReason;
 use tui_lol::api::poller::{Lifecycle, PollMsg};
 use tui_lol::app::App;
+use tui_lol::glyphs::SPARKLINE_LEVELS;
 use tui_lol::model::live_data::Statistics;
-use tui_lol::model::snapshot::{LocalPlayerSnapshot, PlayerSnapshot, Snapshot, Team};
+use tui_lol::model::snapshot::{GameInfo, LocalPlayerSnapshot, PlayerSnapshot, Snapshot, Team};
 use tui_lol::ui::local_strip::gauge_ratio;
 
 /// Wide enough that both gauge tracks carry enough cells for ±1-cell
@@ -285,4 +287,236 @@ fn gauges_render_inside_the_local_band_between_strip_and_ticker() {
         "gauges stay inside the band above the ticker"
     );
     assert!(events_y < height - 1, "status row untouched");
+}
+
+// --- Task 4.7 / viz spec R8: local gold sparkline ring buffer ----------------
+
+/// The gold-trend row leads with its explicit `GOLD` label at column zero.
+/// Uppercase by contract: roster scans and the legacy strip's lowercase
+/// `Gold` token can never collide with it.
+fn unique_gold_row(buffer: &Buffer) -> String {
+    let matches: Vec<String> = (0..buffer.area.height)
+        .map(|y| row_text(buffer, y))
+        .filter(|row| row.trim_end().starts_with("GOLD"))
+        .collect();
+    assert_eq!(
+        matches.len(),
+        1,
+        "exactly one GOLD trend row may exist (gold stays on the local strip)"
+    );
+    matches.into_iter().next().expect("exactly one")
+}
+
+/// A fully gauged local player carrying `gold`; advancing game times keep
+/// every successive fold classified SameGame (design D1).
+fn snapshot_with_gold(gold: Option<f64>, game_time: f64) -> Snapshot {
+    Snapshot {
+        players: Vec::new(),
+        local: Some(local_player(
+            Some(stats(Some(2100.0), Some(3000.0), Some(400.0), Some(500.0))),
+            gold,
+        )),
+        game: Some(GameInfo {
+            game_mode: Some("classic".to_owned()),
+            game_time: Some(game_time),
+            map_name: None,
+        }),
+        events: Vec::new(),
+    }
+}
+
+/// An in-game app whose gold history folded one snapshot per entry of
+/// `golds`: `Some(g)` carries real gold, `None` is an absent value in the
+/// payload (which folds to a gap exactly like a failed poll, design D6).
+fn app_with_gold_series(golds: &[Option<f64>]) -> App {
+    let mut app = App::new();
+    app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
+    let mut game_time = 60.0;
+    for gold in golds {
+        app.on_msg(PollMsg::Snapshot(Box::new(snapshot_with_gold(
+            *gold, game_time,
+        ))));
+        game_time += 10.0;
+    }
+    app
+}
+
+/// viz:R8/S1 + design D6 — below two REAL samples the widget shows an
+/// explicit warm-up placeholder instead of a chart: one real sample reads
+/// `warming up (1/120)`, and gaps or absent gold never count as progress.
+#[test]
+fn warm_up_placeholder_shows_until_two_real_samples_exist() {
+    // Exactly one real sample.
+    let app = app_with_gold_series(&[Some(4350.0)]);
+    let row = unique_gold_row(&draw(&app));
+    assert!(
+        row.contains("warming up (1/120)"),
+        "one real sample must warm up explicitly: {row:?}"
+    );
+    assert!(
+        !row.chars()
+            .any(|c| SPARKLINE_LEVELS.contains(&c.to_string().as_str())),
+        "warm-up must never draw a chart line: {row:?}"
+    );
+
+    // Absent gold is not a sample: zero real points so far.
+    let app = app_with_gold_series(&[None]);
+    let row = unique_gold_row(&draw(&app));
+    assert!(
+        row.contains("warming up (0/120)"),
+        "absent gold must count as no progress: {row:?}"
+    );
+
+    // Gaps between real samples do not inflate the count either.
+    let app = app_with_gold_series(&[Some(10.0), None]);
+    let row = unique_gold_row(&draw(&app));
+    assert!(
+        row.contains("warming up (1/120)"),
+        "a gap must never count as a real sample: {row:?}"
+    );
+}
+
+/// viz:R8 — from two real samples on, the trend draws over the ring-buffer
+/// window with auto-maximum scaling: distinct golds yield distinct ramp
+/// glyphs and the placeholder text disappears.
+#[test]
+fn sparkline_draws_the_trend_once_two_real_samples_exist() {
+    let app = app_with_gold_series(&[Some(100.0), Some(200.0), Some(300.0)]);
+    let row = unique_gold_row(&draw(&app));
+
+    assert!(
+        !row.contains("warming"),
+        "a drawn trend must not claim to be warming up: {row:?}"
+    );
+    let ramp_glyphs: Vec<char> = row
+        .chars()
+        .filter(|c| SPARKLINE_LEVELS.contains(&c.to_string().as_str()))
+        .collect();
+    assert!(
+        ramp_glyphs.len() >= 2,
+        "three rising golds must draw a multi-bar trend: {row:?}"
+    );
+    assert_ne!(
+        ramp_glyphs.first(),
+        ramp_glyphs.last(),
+        "rising golds must scale through the ramp: {ramp_glyphs:?}"
+    );
+}
+
+/// Failed polls insert GAPS, not points (design D4): the gap renders as a
+/// visible light-shade break between bars — never silently bridged.
+#[test]
+fn failed_polls_render_visible_breaks_in_the_trend() {
+    let mut app = App::new();
+    app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
+    app.on_msg(PollMsg::Snapshot(Box::new(snapshot_with_gold(
+        Some(5000.0),
+        60.0,
+    ))));
+    // The failed poll cycle records an explicit gap in the history…
+    app.on_msg(PollMsg::Transient(TransientReason::Timeout));
+    // …and polling resumes with real samples around it.
+    app.on_msg(PollMsg::Snapshot(Box::new(snapshot_with_gold(
+        Some(6000.0),
+        70.0,
+    ))));
+    app.on_msg(PollMsg::Snapshot(Box::new(snapshot_with_gold(
+        Some(7000.0),
+        80.0,
+    ))));
+
+    let row = unique_gold_row(&draw(&app));
+    assert_eq!(
+        row.chars().filter(|c| *c == '\u{2591}').count(),
+        1,
+        "the single failed poll must appear as exactly one visible break: {row:?}"
+    );
+    assert!(
+        row.chars()
+            .any(|c| SPARKLINE_LEVELS.contains(&c.to_string().as_str())),
+        "real samples around the gap must still draw bars: {row:?}"
+    );
+}
+
+/// Past the chart's on-screen width the trend must track the PRESENT: the
+/// ring buffer keeps the newest 120 samples, the chart shows the newest
+/// slice of those, and the most recent gold lands as a full-height bar at
+/// the right edge — never silently scrolled off.
+#[test]
+fn sparkline_tracks_the_newest_samples_beyond_the_chart_width() {
+    let mut app = App::new();
+    app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
+    let mut game_time = 60.0;
+    // 130 polls: more than both the buffer capacity and the 115-chart cells.
+    for i in 0..130 {
+        let gold = if i == 129 {
+            Some(1_000_000.0)
+        } else {
+            Some(10.0)
+        };
+        app.on_msg(PollMsg::Snapshot(Box::new(snapshot_with_gold(
+            gold, game_time,
+        ))));
+        game_time += 1.0;
+    }
+
+    let row = unique_gold_row(&draw(&app));
+    let chart: Vec<char> = row.chars().skip("GOLD ".len()).collect();
+    let rightmost = chart
+        .iter()
+        .rposition(|c| SPARKLINE_LEVELS.contains(&c.to_string().as_str()))
+        .expect("the freshest sample must still be drawn");
+    assert_eq!(
+        chart[rightmost], '\u{2588}',
+        "the latest gold must render full-height at the trend head: {row:?}"
+    );
+}
+
+/// Glyph-safety net scoped to the new family (viz:R1/S2): with gauges, a
+/// gapped trend, and placeholder rows all on screen, every local-strip row
+/// carries whitelisted codepoints or printable ASCII only.
+#[test]
+fn local_strip_rows_stay_within_the_glyph_whitelist() {
+    let mut app = App::new();
+    app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
+    app.on_msg(PollMsg::Snapshot(Box::new(snapshot_with_gold(
+        Some(100.0),
+        60.0,
+    ))));
+    app.on_msg(PollMsg::Transient(TransientReason::Timeout));
+    app.on_msg(PollMsg::Snapshot(Box::new(snapshot_with_gold(None, 70.0))));
+    // A degraded gauge joins the frame too (power fields absent).
+    app.on_msg(PollMsg::Snapshot(Box::new(Snapshot {
+        players: Vec::new(),
+        local: Some(local_player(
+            Some(stats(Some(1500.0), Some(3000.0), None, None)),
+            Some(250.0),
+        )),
+        game: Some(GameInfo {
+            game_mode: Some("classic".to_owned()),
+            game_time: Some(80.0),
+            map_name: None,
+        }),
+        events: Vec::new(),
+    })));
+    let buffer = draw(&app);
+
+    let whitelist: Vec<char> = tui_lol::glyphs::ALL_CODEPOINTS.to_vec();
+    for y in 0..buffer.area.height {
+        let row = row_text(&buffer, y);
+        let trimmed = row.trim_end();
+        if !(trimmed.starts_with("LOCAL HP")
+            || trimmed.starts_with("LOCAL Power")
+            || trimmed.starts_with("GOLD"))
+        {
+            continue;
+        }
+        for c in trimmed.chars() {
+            assert!(
+                c.is_ascii_graphic() || c == ' ' || whitelist.contains(&c),
+                "local-strip glyph {c:?} (U+{:04X}) is not conhost-safe",
+                c as u32
+            );
+        }
+    }
 }

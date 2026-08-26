@@ -32,10 +32,13 @@ pub(crate) fn render<C: Clock>(frame: &mut Frame, app: &App<C>, regions: &Region
     let Some(snapshot) = app.snapshot() else {
         return;
     };
-    draw_snapshot(snapshot, regions, frame);
+    draw_snapshot(snapshot, app.gold_window(), regions, frame);
 }
 
-fn draw_snapshot(snapshot: &Snapshot, regions: &Regions, frame: &mut Frame) {
+fn draw_snapshot<G>(snapshot: &Snapshot, gold_window: G, regions: &Regions, frame: &mut Frame)
+where
+    G: Iterator<Item = Option<u64>>,
+{
     let mut panel_lines: Vec<String> = Vec::new();
     for (header, team) in [("Team ORDER", Team::Order), ("Team CHAOS", Team::Chaos)] {
         let members: Vec<&PlayerSnapshot> = snapshot
@@ -82,7 +85,7 @@ fn draw_snapshot(snapshot: &Snapshot, regions: &Regions, frame: &mut Frame) {
                 height: regions.local.height - 1,
                 ..regions.local
             };
-            super::local_strip::render(frame, local, widget_rows);
+            super::local_strip::render(frame, local, gold_window, widget_rows);
         }
     }
 

@@ -22,15 +22,31 @@
 //!   the renderer paints the custom label at the left, one space, then
 //!   `floor(remaining × ratio)` filled cells and unfilled cells to the edge
 //!   (lines 424–454).
+//! - **Sparkline** (`sparkline.rs`, task 4.7): `.data` accepts `Option<u64>`
+//!   natively (line 209); `None` samples paint `.absent_value_symbol` at
+//!   full column height, whose DEFAULT is `shade::EMPTY` — a plain space,
+//!   so [`Glyph::LightShade`] is passed explicitly to keep poll gaps
+//!   visible. The default `NINE_LEVELS` ramp (`▁▂▃▄▅▆▇█`) is fully
+//!   whitelisted; auto-max over present samples applies when `.max()` is
+//!   unset (lines 359–361). Data renders front-first, which is why the
+//!   window is trimmed to its newest slice before drawing.
 //!
 //! Implemented in Phase 4 (tasks 4.6–4.7).
 
 use crate::glyphs::Glyph;
+use crate::history::GoldHistory;
 use crate::model::snapshot::LocalPlayerSnapshot;
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{LineGauge, Paragraph};
+use ratatui::widgets::{LineGauge, Paragraph, Sparkline};
+
+/// Cells reserved for the gold-trend row's label plus one separator.
+const GOLD_LABEL_CELLS: usize = "GOLD ".len();
+
+/// Real samples required before a chart may draw instead of the warm-up
+/// text (design D6: fewer than two reads as a flat line — spec-forbidden).
+const WARM_UP_MIN_REAL_SAMPLES: usize = 2;
 
 /// The clamped fill ratio of one gauge (viz:R7, design error-taxonomy row):
 /// `current / max` clamped into [0, 1]. Any absent operand, non-finite
@@ -48,10 +64,14 @@ pub fn gauge_ratio(current: Option<f64>, max: Option<f64>) -> Option<f64> {
 }
 
 /// Renders the local-strip widget rows into `area`: the blocked-segment HP
-/// and power gauges (viz:R7), then the gold trend (task 4.7). Rows clip
+/// and power gauges (viz:R7), then the gold trend (viz:R8) fed from the
+/// app-side ring buffer through `App::gold_window` (design D4). Rows clip
 /// silently when the band shrinks below the full contract; an empty area is
 /// a no-op.
-pub(super) fn render(frame: &mut Frame, local: &LocalPlayerSnapshot, area: Rect) {
+pub(super) fn render<I>(frame: &mut Frame, local: &LocalPlayerSnapshot, gold_window: I, area: Rect)
+where
+    I: Iterator<Item = Option<u64>>,
+{
     if area.is_empty() {
         return;
     }
@@ -69,16 +89,73 @@ pub(super) fn render(frame: &mut Frame, local: &LocalPlayerSnapshot, area: Rect)
         height: area.height.saturating_sub(1),
         ..area
     };
-    if !rest.is_empty() {
-        let power_row = Rect { height: 1, ..rest };
-        render_gauge(
-            frame,
-            power_row,
-            "LOCAL Power",
-            stats.and_then(|s| s.power),
-            stats.and_then(|s| s.power_max),
-        );
+    if rest.is_empty() {
+        return;
     }
+    let power_row = Rect { height: 1, ..rest };
+    render_gauge(
+        frame,
+        power_row,
+        "LOCAL Power",
+        stats.and_then(|s| s.power),
+        stats.and_then(|s| s.power_max),
+    );
+    let gold_row = Rect {
+        y: rest.y + 1,
+        height: 1,
+        ..rest
+    };
+    if !gold_row.is_empty() {
+        render_gold(frame, gold_window, gold_row);
+    }
+}
+
+/// Draws the local-gold trend row (viz:R8, design D6): below two REAL
+/// samples (`Some`) an explicit `warming up (n/120)` placeholder — never a
+/// flat line; past that threshold a Sparkline over the window whose absent
+/// values render as visible light-shade breaks. Only the newest samples a
+/// chart cell can hold are shown, so the trend tracks the present with gap
+/// breaks kept in place.
+fn render_gold<I>(frame: &mut Frame, gold_window: I, row: Rect)
+where
+    I: Iterator<Item = Option<u64>>,
+{
+    let window: Vec<Option<u64>> = gold_window.collect();
+    let real_samples = window.iter().filter(|sample| sample.is_some()).count();
+    if real_samples < WARM_UP_MIN_REAL_SAMPLES {
+        frame.render_widget(
+            paragraph_of(&format!(
+                "GOLD warming up ({real_samples}/{})",
+                GoldHistory::CAPACITY
+            )),
+            row,
+        );
+        return;
+    }
+
+    // Trim to the freshest slice that fits: the Sparkline draws data
+    // front-first, so feeding the raw window would pin the chart to the
+    // oldest samples once history outgrew the chart width.
+    let label_cells = GOLD_LABEL_CELLS.min(row.width as usize);
+    let chart_width = row.width as usize - label_cells;
+    let start = window.len().saturating_sub(chart_width);
+    frame.render_widget(
+        paragraph_of("GOLD "),
+        Rect {
+            width: label_cells as u16,
+            ..row
+        },
+    );
+    frame.render_widget(
+        Sparkline::default()
+            .data(&window[start..])
+            .absent_value_symbol(Glyph::LightShade.symbol()),
+        Rect {
+            x: row.x + label_cells as u16,
+            width: row.width - label_cells as u16,
+            ..row
+        },
+    );
 }
 
 /// Draws one blocked-segment gauge: filled cells in full blocks over a
