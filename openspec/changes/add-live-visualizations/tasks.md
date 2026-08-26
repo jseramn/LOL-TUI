@@ -75,7 +75,7 @@ Pinned guarantees: `live-dashboard-ui` R6 notice/status unchanged; `live-client-
 - [x] 4.3 RED/GREEN level bars: fixed scale `(level−1)/17` clamp [0,1] — level 1 near-empty, 18 full, 25 clamps full with no panic; absent level ⇒ `?` (viz:R4/S1, S2).
 - [x] 4.4 RED/GREEN K/D/A mini-bars: three glyph spans green/red/blue, each scaled by ITS metric's shared max across visible players; derived ratios (e.g. (K+A)/D) never computed nor displayed; 16-color host degrades palette but keeps all three bars (viz:R5/S2, S3).
 - [x] 4.5 RED/GREEN inventory fill `src/ui/team.rs`: 6-cell `▓`/`░` strip counting occupied slots at index ≠ 6 (index 6 = trinket, excluded per spec — cannot prove trinket presence); null/absent slots render empty; wholly absent items list ⇒ `?` (viz:R6/S1, S2).
-- [ ] 4.6 RED/GREEN local gauges `src/ui/local_strip.rs`: 2 × LineGauge-style blocked-segment gauges, HP (2100/3000 ⇒ 70%) and power (400/500 ⇒ 80%), ratio clamped [0,1]; any missing operand ⇒ `?` on that gauge only; non-local players never show gauges (viz:R7/S1, S2).
+- [x] 4.6 RED/GREEN local gauges `src/ui/local_strip.rs`: 2 × LineGauge-style blocked-segment gauges, HP (2100/3000 ⇒ 70%) and power (400/500 ⇒ 80%), ratio clamped [0,1]; any missing operand ⇒ `?` on that gauge only; non-local players never show gauges (viz:R7/S1, S2).
 - [ ] 4.7 RED/GREEN gold sparkline: Sparkline over `Vec<Option<u64>>` from `gold_window()`; window auto-max; `None` renders as break (absent value); < 2 `Some` points ⇒ explicit `warming up (n/120)` text — never a flat line (D6) (viz:R8/S1). Test: CT green.
 
 ## Phase 5: Viewport Degradation Matrix (slice S10)
