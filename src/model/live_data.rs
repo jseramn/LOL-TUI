@@ -32,10 +32,54 @@ pub struct LiveData {
     pub active_player: Option<ActivePlayer>,
     /// The 10 players; `None` when the key is absent or null.
     pub all_players: Option<Vec<PlayerData>>,
-    /// Top-level event list; distinguishable from an empty list.
-    pub events: Option<Vec<RawEvent>>,
-    /// Game-level stats (mode/time/map).
-    pub game_stats: Option<GameStats>,
+    /// Top-level event list. The real client wraps the array in an object
+    /// (`{"Events": [...]}`); hand-authored fixtures use the bare array. This
+    /// accepts either shape via [`EventsShape`] so the model stays correct
+    /// against the real API without breaking existing tests.
+    pub events: Option<EventsShape>,
+    /// Game-level stats. The real client names this `gameData`; legacy
+    /// fixtures named it `gameStats`. Both accepted via `alias`.
+    #[serde(rename = "gameData", alias = "gameStats")]
+    pub game_data: Option<GameStats>,
+}
+
+/// Accepts the Live Client Data API's `{"Events": [...]}` wrapper OR a bare
+/// array (legacy/fixture shape). Derefs to the inner `[RawEvent]` so callers
+/// can treat it transparently like `&[RawEvent]`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum EventsShape {
+    Direct(Vec<RawEvent>),
+    Wrapped {
+        #[serde(rename = "Events")]
+        events: Vec<RawEvent>,
+    },
+}
+
+impl EventsShape {
+    /// Number of events regardless of source shape.
+    pub fn len(&self) -> usize {
+        match self {
+            EventsShape::Direct(v) => v.len(),
+            EventsShape::Wrapped { events } => events.len(),
+        }
+    }
+
+    /// True when neither shape contains any events.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+impl std::ops::Deref for EventsShape {
+    type Target = [RawEvent];
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            EventsShape::Direct(v) => v,
+            EventsShape::Wrapped { events } => events,
+        }
+    }
 }
 
 /// Local (active) player: identity plus gold and exposed stat detail.

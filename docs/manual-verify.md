@@ -125,6 +125,35 @@ resize, before quitting:
 
 ---
 
+## 10. Known schema drift pitfall (post-verification discovery)
+
+After U6 verify passed on fixtures, the first real-game check on this machine
+surfaced a schema drift between the hand-authored fixtures and the live Live
+Client Data API:
+
+- `events` is wrapped in an object in the real payload:
+  `{"events": {"Events": [...]}}` — the bare-array form only exists in the
+  legacy fixtures. The `EventsShape` untagged enum in
+  `src/model/live_data.rs` accepts both shapes.
+- `gameStats` was renamed to `gameData` in the live payload. The field is
+  annotated `#[serde(rename = "gameData", alias = "gameStats")]` so legacy
+  fixtures still deserialize.
+
+If you ever observe the app stuck on `state=standby | updated ?` *during a
+real game*:
+
+- Run `cargo run --example live_probe -j 1` to check whether the TLS/fetch
+  path itself works against the live port.
+- Run `cargo run --example parse_captured -- <path-to-json>` to isolate a
+  DTO mismatch from a transport error.
+
+Both examples are checked in under `examples/` as reusable debugging aids.
+
+`tests/fixtures/allgamedata/captured-*.json` is gitignored because real
+payloads contain summoner names (PII).
+
+---
+
 **Result**: record pass/fail per host (Windows Terminal / conhost). Any fail
 is a defect against the linked spec scenario — file it with the host name,
 step number, and what diverged.

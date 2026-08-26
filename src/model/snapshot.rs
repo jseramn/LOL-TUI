@@ -282,7 +282,7 @@ impl Snapshot {
                 .active_player
                 .as_ref()
                 .map(LocalPlayerSnapshot::from_local),
-            game: data.game_stats.as_ref().map(|g| GameInfo {
+            game: data.game_data.as_ref().map(|g| GameInfo {
                 game_mode: g.game_mode.clone(),
                 game_time: g.game_time,
                 map_name: g.map_name.clone(),

@@ -71,7 +71,7 @@ fn full_fixture_parses_completely() {
     assert_eq!(graves.is_dead, Some(true));
     assert_eq!(graves.respawn_timer, Some(34.0));
 
-    let stats = data.game_stats.as_ref().expect("gameStats present");
+    let stats = data.game_data.as_ref().expect("gameData present");
     assert_eq!(stats.game_mode.as_deref(), Some("CLASSIC"));
     assert_eq!(stats.game_time, Some(754.19));
     assert_eq!(stats.map_name.as_deref(), Some("Map11"));
@@ -144,8 +144,8 @@ fn partial_player_degrades_gracefully() {
     assert_eq!(jinx.respawn_timer, Some(0.0));
 
     // Events and game stats untouched by the partial player.
-    assert_eq!(data.events.as_ref().map(Vec::len), Some(9));
-    assert_eq!(data.game_stats.as_ref().unwrap().game_time, Some(754.19));
+    assert_eq!(data.events.as_ref().map(|e| e.len()), Some(9));
+    assert_eq!(data.game_data.as_ref().unwrap().game_time, Some(754.19));
 }
 
 /// Absent == null == omitted at every level: an explicit JSON null must land
@@ -173,7 +173,7 @@ fn null_and_omitted_fields_are_equivalent() {
     assert!(empty.active_player.is_none());
     assert!(empty.all_players.is_none());
     assert!(empty.events.is_none());
-    assert!(empty.game_stats.is_none());
+    assert!(empty.game_data.is_none());
 
     let empty_events = parse_all_game_data(EMPTY_EVENTS).expect("empty_events fixture parses");
     let events = empty_events.events.expect("events key explicitly present");

@@ -1,1 +1,6 @@
 /target
+
+# Captured live payloads contain summoner names (privacy) - keep local only
+tests/fixtures/allgamedata/captured-*.json
+# Local debugging scratch (e.g. stderr redirected via `2> poller.log`)
+poller.log
