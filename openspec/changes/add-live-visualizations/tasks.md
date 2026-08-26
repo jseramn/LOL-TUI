@@ -80,8 +80,8 @@ Pinned guarantees: `live-dashboard-ui` R6 notice/status unchanged; `live-client-
 
 ## Phase 5: Viewport Degradation Matrix (slice S10)
 
-- [ ] 5.1 RED `tests/ui/degradation_tests.rs`: `select_layout` tier boundaries — height ≤12 none · 13–14 +CS · 15–17 +level · 18–19 +inventory · 20–23 +K/D/A · ≥24 all (+sparkline); width < 40 hides ALL charts; gauges have no tier (always-on); monotonic-subset property between sizes; status row present for EVERY size in a 1×1 → 200×60 sweep (viz:R9/S1, S2). Run CT → RED.
-- [ ] 5.2 GREEN `select_layout(area: Rect) -> LiveLayout { areas, visible }` in `src/ui/mod.rs`; wire widgets to the visible set; ticker `Min(1)` compresses first. Full-frame purity scan at 80×24 with complete data (viz:R10/S1) + re-run notice-at-bottom sweep pinning ui:R6. Test: CT green.
+- [x] 5.1 RED `tests/ui/degradation_tests.rs`: `select_layout` tier boundaries — height ≤12 none · 13–14 +CS · 15–17 +level · 18–19 +inventory · 20–23 +K/D/A · ≥24 all (+sparkline); width < 40 hides ALL charts; gauges have no tier (always-on); monotonic-subset property between sizes; status row present for EVERY size in a 1×1 → 200×60 sweep (viz:R9/S1, S2). Run CT → RED.
+- [x] 5.2 GREEN `select_layout(area: Rect) -> LiveLayout { areas, visible }` in `src/ui/mod.rs`; wire widgets to the visible set; ticker `Min(1)` compresses first. Full-frame purity scan at 80×24 with complete data (viz:R10/S1) + re-run notice-at-bottom sweep pinning ui:R6. Test: CT green.
 
 ## Phase 6: Verification & Docs (slice S11)
 

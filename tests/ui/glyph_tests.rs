@@ -8,12 +8,12 @@
 
 use std::collections::HashSet;
 
+use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
 use ratatui::style::Style;
 use ratatui::widgets::Widget;
-use ratatui::Terminal;
 use tui_lol::glyphs::{ALL_CODEPOINTS, ALL_GLYPHS, Glyph};
 
 /// Box drawing (U+2500–U+257F) ∪ Block Elements/shades (U+2580–U+259F).
