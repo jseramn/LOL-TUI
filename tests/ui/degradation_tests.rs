@@ -149,9 +149,13 @@ fn hiding_is_monotonic_between_smaller_and_larger_viewports() {
 /// order as height descends: gold sparkline first, then K/D/A, then
 /// inventory, then level bars; CS bars hide last. Walking every height at
 /// a chart-friendly width may switch off at most the next family in line.
+/// One entry of the hide-priority table: family name plus its visibility
+/// predicate on a computed `ChartSet`.
+type PriorityEntry<'a> = (&'a str, fn(&ChartSet) -> bool);
+
 #[test]
 fn families_hide_strictly_in_the_documented_priority_order() {
-    let priority: [(&str, fn(&ChartSet) -> bool); 5] = [
+    let priority: [PriorityEntry; 5] = [
         ("sparkline", |c| c.sparkline),
         ("kda", |c| c.kda),
         ("inventory", |c| c.inventory),

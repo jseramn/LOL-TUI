@@ -158,15 +158,15 @@ pub enum Continuation {
 /// 2. else both modes present and changed ⇒ different game;
 /// 3. otherwise same game — absence is never evidence of a new game.
 pub fn classify(prev: &GameIdentity, next: &GameIdentity) -> Continuation {
-    if let (Some(prev_time), Some(next_time)) = (prev.game_time, next.game_time) {
-        if prev_time - next_time > IDENTITY_TIME_TOLERANCE_SECONDS {
-            return Continuation::DifferentGame;
-        }
+    if let (Some(prev_time), Some(next_time)) = (prev.game_time, next.game_time)
+        && prev_time - next_time > IDENTITY_TIME_TOLERANCE_SECONDS
+    {
+        return Continuation::DifferentGame;
     }
-    if let (Some(prev_mode), Some(next_mode)) = (&prev.game_mode, &next.game_mode) {
-        if prev_mode != next_mode {
-            return Continuation::DifferentGame;
-        }
+    if let (Some(prev_mode), Some(next_mode)) = (&prev.game_mode, &next.game_mode)
+        && prev_mode != next_mode
+    {
+        return Continuation::DifferentGame;
     }
     Continuation::SameGame
 }

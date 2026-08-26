@@ -161,10 +161,10 @@ impl<C: Clock> App<C> {
                 game_time: None,
                 game_mode: None,
             });
-        if let Some(prev) = &self.identity {
-            if classify(prev, &next_identity) == Continuation::DifferentGame {
-                self.history.clear();
-            }
+        if let Some(prev) = &self.identity
+            && classify(prev, &next_identity) == Continuation::DifferentGame
+        {
+            self.history.clear();
         }
         self.identity = Some(next_identity);
 
