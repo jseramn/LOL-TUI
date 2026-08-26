@@ -55,7 +55,7 @@
 
 use crate::glyphs::Glyph;
 use crate::history::chart_u64;
-use crate::model::snapshot::{PlayerSnapshot, Snapshot, Team};
+use crate::model::snapshot::{ItemSnapshot, PlayerSnapshot, Snapshot, Team};
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::style::{Color, Style};
@@ -66,11 +66,20 @@ use ratatui::widgets::{Bar, BarChart, Paragraph};
 const LEVEL_TRACK_CELLS: usize = 10;
 /// Fixed track width of each K/D/A mini-bar in cells (task 4.4).
 const KDA_TRACK_CELLS: usize = 8;
+/// Fixed cell count of the inventory fill strip (slots 0–5; task 4.5).
+const INVENTORY_CELLS: usize = 6;
 
 /// Width of the fixed prefix every row carries before the CS chart:
 /// `Lv` + level track + one-space separator + three labeled K/D/A tracks
 /// (each letter + 8 cells) with separators + the `CS` label.
 const PREFIX_CELLS: u16 = 2 + LEVEL_TRACK_CELLS as u16 + 1 + 9 + 1 + 9 + 1 + 9 + 1 + 2;
+
+/// Separator cell between the CS chart and the inventory strip.
+const INVENTORY_GAP: u16 = 1;
+
+/// The trinket inventory slot: it can never be PROVEN to hold an item, so
+/// it is excluded from the fill count (design D3).
+const TRINKET_SLOT: u8 = 6;
 
 /// Renders the four team-column widget families into `area`, one row per
 /// visible player in roster order (ORDER block first, mirroring the legacy
@@ -102,11 +111,13 @@ pub(super) fn render(frame: &mut Frame, snapshot: &Snapshot, area: Rect) {
     // Each K/D/A metric shares its own maximum across ALL visible players
     // (viz:R5). These are integer counters — they bypass `chart_u64` by
     // design (D5), so no truncation policy can drift their values.
-    let counter_max = |pick: fn(&PlayerSnapshot) -> Option<u32>| roster
-        .iter()
-        .filter_map(|p| pick(p).map(u64::from))
-        .max()
-        .unwrap_or(0);
+    let counter_max = |pick: fn(&PlayerSnapshot) -> Option<u32>| {
+        roster
+            .iter()
+            .filter_map(|p| pick(p).map(u64::from))
+            .max()
+            .unwrap_or(0)
+    };
     let kda_max = (
         counter_max(|p| p.kills),
         counter_max(|p| p.deaths),
@@ -148,6 +159,26 @@ fn render_row(
     if chart_area.is_empty() {
         return;
     }
+
+    // Reserve the trailing inventory strip when the row is wide enough;
+    // otherwise the strip clips away with the rest of the row (P5 tiers
+    // will govern visibility properly).
+    let inv_room = INVENTORY_GAP + INVENTORY_CELLS as u16;
+    let (chart_area, inv_area) = if chart_area.width > inv_room {
+        let chart = Rect {
+            width: chart_area.width - inv_room,
+            ..chart_area
+        };
+        let inv = Rect {
+            x: chart_area.x + chart_area.width - INVENTORY_CELLS as u16,
+            width: INVENTORY_CELLS as u16,
+            ..chart_area
+        };
+        (chart, Some(inv))
+    } else {
+        (chart_area, None)
+    };
+
     match player.creep_score.and_then(chart_u64) {
         Some(cs) => frame.render_widget(
             BarChart::horizontal([Bar::default().value(cs).text_value("")])
@@ -157,6 +188,40 @@ fn render_row(
             chart_area,
         ),
         None => frame.render_widget(paragraph_of("?"), chart_area),
+    }
+
+    if let Some(inv_area) = inv_area {
+        frame.render_widget(inventory_paragraph(player.items.as_deref()), inv_area);
+    }
+}
+
+/// Counts occupied inventory slots for the fill strip (viz:R6, design D3):
+/// an entry occupies a cell only when it carries an item identity AND does
+/// not sit in the trinket slot — a trinket's presence can never be proven.
+/// Slotless entries count (same unprovability); `None` items (absent list)
+/// yield `None`, distinct from a present-but-empty list (`Some(0)`).
+pub fn inventory_occupied(items: Option<&[ItemSnapshot]>) -> Option<usize> {
+    items.map(|list| {
+        list.iter()
+            .filter(|entry| entry.item_id.is_some() && entry.slot != Some(TRINKET_SLOT))
+            .count()
+            .min(INVENTORY_CELLS)
+    })
+}
+
+/// The six-cell fill strip: dark shade per occupied slot, light shade per
+/// empty one — or the explicit placeholder for an absent list. Glyphs flow
+/// exclusively through the whitelist module (design D8).
+fn inventory_paragraph(items: Option<&[ItemSnapshot]>) -> Paragraph<'static> {
+    match inventory_occupied(items) {
+        Some(occupied) => Paragraph::new(Line::from(Span::from(format!(
+            "{}{}",
+            Glyph::DarkShade.symbol().repeat(occupied),
+            Glyph::LightShade
+                .symbol()
+                .repeat(INVENTORY_CELLS - occupied),
+        )))),
+        None => paragraph_of("?     "),
     }
 }
 
@@ -227,14 +292,12 @@ fn level_track(level: Option<u32>) -> String {
             // The ratio is clamped into [0, 1] first, so `filled` can never
             // exceed the track width.
             let blocks = Glyph::FullBlock.symbol().repeat(filled);
-            let shades =
-                Glyph::LightShade.symbol().repeat(LEVEL_TRACK_CELLS - filled);
+            let shades = Glyph::LightShade
+                .symbol()
+                .repeat(LEVEL_TRACK_CELLS - filled);
             format!("{blocks}{shades}")
         }
-        None => format!(
-            "?{}",
-            " ".repeat(LEVEL_TRACK_CELLS.saturating_sub(1))
-        ),
+        None => format!("?{}", " ".repeat(LEVEL_TRACK_CELLS.saturating_sub(1))),
     }
 }
 

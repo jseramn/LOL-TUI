@@ -51,7 +51,9 @@ fn live_app_with(players: Vec<PlayerSnapshot>) -> App {
 
 fn draw(app: &App) -> Buffer {
     let mut terminal = Terminal::new(TestBackend::new(WIDTH, HEIGHT)).expect("test backend");
-    let frame = terminal.draw(|f| tui_lol::ui::render(f, app)).expect("frame");
+    let frame = terminal
+        .draw(|f| tui_lol::ui::render(f, app))
+        .expect("frame");
     frame.buffer.clone()
 }
 
@@ -70,11 +72,16 @@ fn viz_rows(buffer: &Buffer) -> Vec<String> {
         .collect()
 }
 
-/// Everything after the `CS` label on a visualization row: the shared-max
-/// chart area (and, once implemented, the trailing inventory strip).
-fn cs_segment(row: &str) -> &str {
-    let label = row.find("CS").expect("CS section label on visualization row");
-    &row[label + 2..]
+/// The shared-max CS chart area of a visualization row: everything after
+/// the `CS` label UP TO the trailing separator + six inventory cells.
+fn cs_segment(row: &str) -> String {
+    let chars: Vec<char> = row.chars().collect();
+    let label = chars
+        .windows(2)
+        .position(|w| w == ['C', 'S'])
+        .expect("CS section label on visualization row");
+    let end = chars.len().saturating_sub(7).max(label + 2);
+    chars[label + 2..end].iter().collect()
 }
 
 // --- Task 4.2 / viz spec R3: per-team creep score bars ----------------------
@@ -198,7 +205,10 @@ fn level_bars_pin_fixed_scale_endpoints() {
     assert_eq!(rows.len(), 2);
 
     assert_eq!(
-        level_track(&rows[0]).chars().filter(|c| *c == '\u{2588}').count(),
+        level_track(&rows[0])
+            .chars()
+            .filter(|c| *c == '\u{2588}')
+            .count(),
         0,
         "level 1 must sit at the bottom of the fixed scale: {0:?}",
         rows[0]
@@ -225,13 +235,19 @@ fn overrange_and_underrange_levels_clamp_without_panicking() {
     assert_eq!(rows.len(), 2, "both players render");
 
     assert_eq!(
-        level_track(&rows[0]).chars().filter(|c| *c == '\u{2588}').count(),
+        level_track(&rows[0])
+            .chars()
+            .filter(|c| *c == '\u{2588}')
+            .count(),
         10,
         "level 25 must clamp to a full bar: {0:?}",
         rows[0]
     );
     assert_eq!(
-        level_track(&rows[1]).chars().filter(|c| *c == '\u{2588}').count(),
+        level_track(&rows[1])
+            .chars()
+            .filter(|c| *c == '\u{2588}')
+            .count(),
         0,
         "level 0 must clamp to an empty bar: {0:?}",
         rows[1]
@@ -258,11 +274,7 @@ fn metric_track(row: &str, label: char) -> String {
 }
 
 fn filled_cells(track: impl AsRef<str>) -> usize {
-    track
-        .as_ref()
-        .chars()
-        .filter(|c| *c == '\u{2588}')
-        .count()
+    track.as_ref().chars().filter(|c| *c == '\u{2588}').count()
 }
 
 /// viz:R5 — each mini-bar scales by ITS OWN metric's shared maximum across
@@ -372,8 +384,11 @@ fn zero_deaths_keep_all_three_segments_and_display_no_numbers() {
 #[test]
 fn absent_counter_renders_placeholder_without_touching_sibling_metrics() {
     let mut absent_kills = ps(Some(Team::Order), Some(9.0));
-    (absent_kills.kills, absent_kills.deaths, absent_kills.assists) =
-        (None, Some(2), Some(2));
+    (
+        absent_kills.kills,
+        absent_kills.deaths,
+        absent_kills.assists,
+    ) = (None, Some(2), Some(2));
     let mut intact = ps(Some(Team::Chaos), Some(9.0));
     (intact.kills, intact.deaths, intact.assists) = (Some(4), Some(4), Some(4));
 
@@ -396,6 +411,140 @@ fn absent_counter_renders_placeholder_without_touching_sibling_metrics() {
         filled_cells(metric_track(&rows[1], 'K')),
         8,
         "other players' bars unaffected"
+    );
+}
+
+// --- Task 4.5 / viz spec R6: inventory fill bar -----------------------------
+
+use tui_lol::model::snapshot::ItemSnapshot;
+
+fn item(slot: Option<u8>, item_id: Option<u32>) -> ItemSnapshot {
+    ItemSnapshot {
+        display_name: item_id.map(|_| "Item".to_owned()),
+        item_id,
+        count: Some(1),
+        slot,
+    }
+}
+
+/// The strip is the FINAL six cells of a visualization row: dark-shade
+/// filled cells followed by light-shade empty ones.
+fn inventory_strip(row: &str) -> String {
+    row.chars().skip(row.chars().count() - 6).collect()
+}
+
+fn player_with_items(team: Option<Team>, items: Option<Vec<ItemSnapshot>>) -> PlayerSnapshot {
+    let mut p = ps(team, Some(9.0));
+    p.items = items;
+    p
+}
+
+/// viz:R6/S1 — three occupied slots and three empty ones draw the exact
+/// half-filled extent; null slots (entries without an item id) stay empty.
+#[test]
+fn inventory_strip_shows_partial_fill_and_skips_null_slots() {
+    let player = player_with_items(
+        Some(Team::Order),
+        Some(vec![
+            item(Some(0), Some(3006)),
+            item(Some(1), Some(6672)),
+            item(Some(2), Some(3153)),
+            item(Some(3), None), // null slot exposed as an entry
+            item(Some(4), None),
+        ]),
+    );
+
+    let buffer = draw(&live_app_with(vec![player]));
+    let rows = viz_rows(&buffer);
+    assert_eq!(rows.len(), 1);
+
+    let strip = inventory_strip(&rows[0]);
+    let filled = strip.chars().filter(|c| *c == '\u{2593}').count();
+    let empty = strip.chars().filter(|c| *c == '\u{2591}').count();
+    assert_eq!(
+        (filled, empty),
+        (3, 3),
+        "three real items must fill exactly half the strip: {strip}"
+    );
+}
+
+/// Trinkets can never be proven present, so slot 6 NEVER fills a cell;
+/// a slotless entry counts (it cannot be proven to be the trinket either).
+#[test]
+fn inventory_excludes_trinket_slot_but_counts_slotless_items() {
+    let player = player_with_items(
+        Some(Team::Order),
+        Some(vec![
+            item(Some(0), Some(3006)),
+            item(Some(6), Some(2055)), // trinket slot: excluded per spec
+            item(None, Some(1039)),    // slotless: cannot prove trinket
+        ]),
+    );
+
+    let buffer = draw(&live_app_with(vec![player]));
+    let rows = viz_rows(&buffer);
+    assert_eq!(rows.len(), 1);
+
+    let strip = inventory_strip(&rows[0]);
+    let filled = strip.chars().filter(|c| *c == '\u{2593}').count();
+    assert_eq!(filled, 2, "trinket excluded, slotless counted: {strip}");
+}
+
+/// A wholly absent items list shows the placeholder while other players'
+/// strips render normally (viz:R6/S2).
+#[test]
+fn absent_items_list_renders_placeholder_without_touching_other_strips() {
+    let mut intact = player_with_items(
+        Some(Team::Order),
+        Some(vec![
+            item(Some(0), Some(3006)),
+            item(Some(1), Some(6672)),
+            item(Some(2), Some(3153)),
+            item(Some(3), Some(3026)),
+            item(Some(4), Some(3153)),
+            item(Some(5), Some(1056)),
+        ]),
+    );
+    intact.items = Some(Vec::new()); // present-but-empty: six empty cells
+    let absent = player_with_items(Some(Team::Chaos), None);
+
+    let buffer = draw(&live_app_with(vec![intact, absent]));
+    let rows = viz_rows(&buffer);
+    assert_eq!(rows.len(), 2);
+
+    let empty_strip = inventory_strip(&rows[0]);
+    assert_eq!(
+        empty_strip.chars().filter(|c| *c == '\u{2591}').count(),
+        6,
+        "an empty list is six truly empty cells: {empty_strip}"
+    );
+    assert!(!empty_strip.contains('\u{2593}'));
+
+    let absent_strip = inventory_strip(&rows[1]);
+    assert!(
+        absent_strip.starts_with('?'),
+        "wholly absent list must show the placeholder: {absent_strip}"
+    );
+}
+
+/// Degenerate payloads listing more than six non-trinket items saturate at
+/// the strip width — never panic, never overflow the section.
+#[test]
+fn oversized_inventories_saturate_at_six_cells() {
+    let player = player_with_items(
+        Some(Team::Order),
+        Some((0..=7).map(|slot| item(Some(slot), Some(3001))).collect()),
+    );
+
+    let buffer = draw(&live_app_with(vec![player]));
+    let rows = viz_rows(&buffer);
+    assert_eq!(rows.len(), 1);
+
+    let strip = inventory_strip(&rows[0]);
+    assert_eq!(
+        strip.chars().filter(|c| *c == '\u{2593}').count(),
+        6,
+        "eight items saturate at six filled cells: {strip}"
     );
 }
 
@@ -423,7 +572,10 @@ fn absent_level_renders_placeholder_while_other_bars_render() {
     assert_eq!(rows.len(), 2);
 
     assert_eq!(
-        level_track(&rows[0]).chars().filter(|c| *c == '\u{2588}').count(),
+        level_track(&rows[0])
+            .chars()
+            .filter(|c| *c == '\u{2588}')
+            .count(),
         10,
         "populated level keeps its bar: {0:?}",
         rows[0]
