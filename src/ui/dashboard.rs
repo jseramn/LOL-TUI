@@ -11,7 +11,7 @@
 //! Compliance (design): the respawn value printed here is the exposed
 //! snapshot value verbatim — nothing is derived or counted down locally.
 
-use super::{LiveLayout, draw_lines};
+use super::{LiveLayout, TeamColumns, draw_lines};
 use crate::api::poller::Clock;
 use crate::app::App;
 use crate::model::snapshot::{LocalPlayerSnapshot, PlayerSnapshot, Snapshot, Team};
@@ -60,18 +60,28 @@ where
     draw_lines(frame, regions.body, &panel_lines);
 
     // Team-column visualizations (viz spec R3–R6): additive rows BELOW the
-    // legacy text panels inside the same body band, clipped at its edge.
-    // The text content above is untouched — standing panel pins hold — and
-    // the families themselves obey the degradation matrix's visible set
-    // (viz:R9): below their tier they draw nothing at all.
+    // legacy text panels, laid out SIDE BY SIDE in the shell's ORDER and
+    // CHAOS team columns (viz spec R2 — the W-1 remediation). The columns
+    // are clipped to the viz band below the text content; the text above is
+    // untouched — standing panel pins hold — and the families themselves
+    // obey the degradation matrix's visible set (viz:R9): below their tier
+    // they draw nothing at all. Shared maxima stay global across both teams.
     let used_rows = panel_lines.len().min(regions.body.height as usize) as u16;
     if regions.body.height > used_rows {
-        let viz_area = Rect {
-            y: regions.body.y + used_rows,
-            height: regions.body.height - used_rows,
-            ..regions.body
+        let viz_height = regions.body.height - used_rows;
+        let columns = TeamColumns {
+            order: Rect {
+                y: regions.body.y + used_rows,
+                height: viz_height,
+                ..layout.columns.order
+            },
+            chaos: Rect {
+                y: regions.body.y + used_rows,
+                height: viz_height,
+                ..layout.columns.chaos
+            },
         };
-        super::team::render(frame, snapshot, viz_area, layout.visible);
+        super::team::render(frame, snapshot, columns, layout.visible);
     }
 
     // Local-player strip (ui spec R4): the ONLY surface that ever renders

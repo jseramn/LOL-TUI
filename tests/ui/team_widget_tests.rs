@@ -11,12 +11,16 @@
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
 use tui_lol::api::poller::{Lifecycle, PollMsg};
 use tui_lol::app::App;
 use tui_lol::model::snapshot::{PlayerSnapshot, Snapshot, Team};
+use tui_lol::ui::select_layout;
 
-/// Wide enough that every fixed section plus a usable CS chart fits.
-const WIDTH: u16 = 120;
+/// Wide enough that every fixed section plus a usable CS chart fits INSIDE
+/// ONE team column: the body splits side by side (viz spec R2), so each
+/// column here is 120 cells.
+const WIDTH: u16 = 240;
 const HEIGHT: u16 = 24;
 
 /// A player with every field absent except the ones the caller sets.
@@ -63,13 +67,31 @@ fn row_text(buffer: &Buffer, y: u16) -> String {
         .collect()
 }
 
-/// Visualization rows start with the `Lv` section label at column zero;
-/// no legacy text row can (those begin with a name/champion token).
+/// Visualization rows, extracted PER TEAM COLUMN (viz spec R2: ORDER left,
+/// CHAOS right): a physical body row can carry one row from EACH column, so
+/// each column's cells are sliced out separately and concatenated in roster
+/// order — ORDER rows first, then CHAOS rows — each starting with the `Lv`
+/// section label at its own column origin. No legacy text row can produce a
+/// match (those begin with a name/champion token).
 fn viz_rows(buffer: &Buffer) -> Vec<String> {
-    (0..buffer.area.height)
-        .map(|y| row_text(buffer, y))
-        .filter(|row| row.starts_with("Lv"))
-        .collect()
+    let columns = select_layout(Rect::new(0, 0, WIDTH, HEIGHT)).columns;
+    let segment = |column: ratatui::layout::Rect, y: u16| -> String {
+        (column.x..column.x + column.width)
+            .map(|x| buffer[(x, y)].symbol())
+            .collect()
+    };
+    let mut rows = Vec::new();
+    for y in 0..buffer.area.height {
+        let order_row = segment(columns.order, y);
+        if order_row.starts_with("Lv") {
+            rows.push(order_row);
+        }
+        let chaos_row = segment(columns.chaos, y);
+        if chaos_row.starts_with("Lv") {
+            rows.push(chaos_row);
+        }
+    }
+    rows
 }
 
 /// The shared-max CS chart area of a visualization row: everything after
@@ -611,5 +633,53 @@ fn team_visualizations_stay_between_text_panels_and_status_row() {
     assert!(
         ys[0] < height - 1,
         "visualization must never leak into the status row"
+    );
+}
+
+/// viz:R2 (remediation W-1) — ORDER and CHAOS columns sit SIDE BY SIDE:
+/// with one player per team both visualization rows share ONE physical
+/// body row, ORDER starting at the body's left edge and CHAOS beginning at
+/// the body's horizontal midpoint. Stacked rendering fails this: the CHAOS
+/// row occupies its own lower row and leaves the right half blank.
+#[test]
+fn order_and_chaos_columns_render_side_by_side() {
+    let app = live_app_with(vec![
+        ps(Some(Team::Order), Some(9.0)),
+        ps(Some(Team::Chaos), Some(9.0)),
+    ]);
+    let buffer = draw(&app);
+
+    // Cell index == char index: every buffer symbol is one cell wide.
+    let row_chars = |y: u16| -> Vec<char> { row_text(&buffer, y).chars().collect() };
+
+    let mid = {
+        let body = select_layout(Rect::new(0, 0, WIDTH, HEIGHT)).areas.body;
+        usize::from(body.x + body.width / 2)
+    };
+    let starts_with_lv = |cells: &[char]| cells.starts_with(&['L', 'v']);
+
+    // Existence controls (anti-vacuity) — true whether teams stack or sit
+    // side by side, so the contract assertion below cannot pass vacuously.
+    let left_rows: Vec<u16> = (0..buffer.area.height)
+        .filter(|&y| starts_with_lv(&row_chars(y)))
+        .collect();
+    assert!(
+        !left_rows.is_empty(),
+        "the ORDER visualization row must render at the body's left edge"
+    );
+    let chaos_renders = left_rows.len() > 1
+        || (0..buffer.area.height)
+            .any(|y| row_chars(y).get(mid..).is_some_and(starts_with_lv));
+    assert!(chaos_renders, "the CHAOS visualization row must render");
+
+    // THE side-by-side contract: one physical row hosts both columns.
+    let side_by_side = (0..buffer.area.height).any(|y| {
+        let cells = row_chars(y);
+        starts_with_lv(&cells) && cells.get(mid..).is_some_and(starts_with_lv)
+    });
+    assert!(
+        side_by_side,
+        "ORDER and CHAOS visualization rows must share a physical row, \
+         CHAOS beginning at column {mid}"
     );
 }

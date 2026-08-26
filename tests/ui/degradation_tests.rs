@@ -232,6 +232,74 @@ fn status_row_is_present_for_every_viewport_from_1x1_to_200x60() {
     }
 }
 
+/// viz:R2 remediation (W-1) — the body region splits into ORDER and CHAOS
+/// team columns laid out SIDE BY SIDE wherever the body band itself exists:
+/// ORDER owns the left edge, CHAOS begins exactly where ORDER ends, the
+/// pair closes the band's right edge with no gap and no overlap, and both
+/// columns stay non-empty at every viable viewport (the spec does not allow
+/// one column to vanish). Even body widths split into equal halves.
+/// Degenerate bodies (width < 2, or zero height) cannot host two columns;
+/// there the split must still be deterministic and contained: column widths
+/// sum to the body's width and nothing escapes the band.
+#[test]
+fn team_columns_sit_side_by_side_wherever_the_body_region_is_visible() {
+    for width in 1u16..=200 {
+        for height in 1u16..=60 {
+            let area = Rect::new(0, 0, width, height);
+            let layout = select_layout(area);
+            let (body, cols) = (&layout.areas.body, &layout.columns);
+
+            assert_eq!(
+                cols.order.x, body.x,
+                "{width}x{height}: ORDER owns the body's left edge"
+            );
+            assert_eq!(
+                cols.order.x + cols.order.width,
+                cols.chaos.x,
+                "{width}x{height}: CHAOS starts where ORDER ends (side by side, no gap)"
+            );
+            assert_eq!(
+                cols.chaos.x + cols.chaos.width,
+                body.x + body.width,
+                "{width}x{height}: CHAOS closes the body's right edge"
+            );
+            assert_eq!(
+                (cols.order.y, cols.chaos.y),
+                (body.y, body.y),
+                "{width}x{height}: both columns share the body's top edge"
+            );
+            assert_eq!(
+                (cols.order.height, cols.chaos.height),
+                (body.height, body.height),
+                "{width}x{height}: columns span the body's full height"
+            );
+
+            if !body.is_empty() && body.width >= 2 {
+                assert!(
+                    cols.order.width > 0,
+                    "{width}x{height}: ORDER column must not vanish"
+                );
+                assert!(
+                    cols.chaos.width > 0,
+                    "{width}x{height}: CHAOS column must not vanish"
+                );
+                if body.width % 2 == 0 {
+                    assert_eq!(
+                        cols.order.width, cols.chaos.width,
+                        "{width}x{height}: even body splits into equal halves"
+                    );
+                }
+            } else {
+                assert_eq!(
+                    cols.order.width + cols.chaos.width,
+                    body.width,
+                    "{width}x{height}: degenerate split stays contained in the body"
+                );
+            }
+        }
+    }
+}
+
 // --- Task 5.2 / viz spec R10: the visible set governs what renders ---
 
 fn snapshot_from_fixture(name: &str) -> Snapshot {
