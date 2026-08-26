@@ -58,6 +58,7 @@ use crate::history::chart_u64;
 use crate::model::snapshot::{PlayerSnapshot, Snapshot, Team};
 use ratatui::Frame;
 use ratatui::layout::Rect;
+use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Bar, BarChart, Paragraph};
 
@@ -98,6 +99,20 @@ pub(super) fn render(frame: &mut Frame, snapshot: &Snapshot, area: Rect) {
         .collect();
     let cs_max = cs_values.iter().flatten().copied().max().unwrap_or(0);
 
+    // Each K/D/A metric shares its own maximum across ALL visible players
+    // (viz:R5). These are integer counters — they bypass `chart_u64` by
+    // design (D5), so no truncation policy can drift their values.
+    let counter_max = |pick: fn(&PlayerSnapshot) -> Option<u32>| roster
+        .iter()
+        .filter_map(|p| pick(p).map(u64::from))
+        .max()
+        .unwrap_or(0);
+    let kda_max = (
+        counter_max(|p| p.kills),
+        counter_max(|p| p.deaths),
+        counter_max(|p| p.assists),
+    );
+
     let rows = area.height.min(roster.len() as u16) as usize;
     for (i, player) in roster.iter().take(rows).enumerate() {
         let row = Rect {
@@ -105,19 +120,25 @@ pub(super) fn render(frame: &mut Frame, snapshot: &Snapshot, area: Rect) {
             height: 1,
             ..area
         };
-        render_row(frame, row, player, cs_max);
+        render_row(frame, row, player, cs_max, kda_max);
     }
 }
 
-/// Draws one player's visualization row: fixed-prefix labels plus the
+/// Draws one player's visualization row: fixed-prefix sections plus the
 /// shared-maximum CS chart (or the explicit placeholder).
-fn render_row(frame: &mut Frame, row: Rect, player: &PlayerSnapshot, cs_max: u64) {
+fn render_row(
+    frame: &mut Frame,
+    row: Rect,
+    player: &PlayerSnapshot,
+    cs_max: u64,
+    kda_max: (u64, u64, u64),
+) {
     let prefix_width = PREFIX_CELLS.min(row.width);
     let prefix = Rect {
         width: prefix_width,
         ..row
     };
-    frame.render_widget(Paragraph::new(prefix_line(player)), prefix);
+    frame.render_widget(Paragraph::new(prefix_line(player, kda_max)), prefix);
 
     let chart_area = Rect {
         x: row.x + prefix_width,
@@ -147,23 +168,53 @@ pub fn level_fill_cells(level: u32) -> usize {
     (ratio * f64::from(LEVEL_TRACK_CELLS as u16)).round() as usize
 }
 
-/// The fixed-prefix label line for one player: section letters plus each
-/// family's track content. Sections gain their glyphs from tasks 4.3–4.5;
-/// the geometry is frozen so columns align across players and tasks.
-fn prefix_line(player: &PlayerSnapshot) -> Line<'static> {
-    let mut spans = vec![
+/// Maps a counter onto a shared maximum, expressed in whole track cells:
+/// rounded half-up, never exceeding the track. `max == 0` means every
+/// visible value is zero — every bar is then a true zero (empty track).
+/// Display-only scaling; the D5 conversion policy does not apply here.
+pub fn scaled_cells(value: u64, max: u64, track: usize) -> usize {
+    if max == 0 {
+        return 0;
+    }
+    let track = track as u64;
+    (((value * track) + (max / 2)) / max).min(track) as usize
+}
+
+/// The fixed-prefix label line for one player: each family's section with
+/// its track content. Geometry is frozen so columns align across players.
+fn prefix_line(player: &PlayerSnapshot, kda_max: (u64, u64, u64)) -> Line<'static> {
+    Line::from(vec![
         Span::from("Lv"),
         Span::from(level_track(player.level)),
-        Span::from(" K"),
-        Span::from(" ".repeat(KDA_TRACK_CELLS)),
-        Span::from(" D"),
-        Span::from(" ".repeat(KDA_TRACK_CELLS)),
-        Span::from(" A"),
-        Span::from(" ".repeat(KDA_TRACK_CELLS)),
+        Span::from(" "),
+        metric_span("K", player.kills, kda_max.0, Color::Green),
+        Span::from(" "),
+        metric_span("D", player.deaths, kda_max.1, Color::Red),
+        Span::from(" "),
+        metric_span("A", player.assists, kda_max.2, Color::Blue),
         Span::from(" CS"),
-    ];
-    spans.shrink_to_fit();
-    Line::from(spans)
+    ])
+}
+
+/// One labeled K/D/A mini-bar: the metric letter followed by its fixed
+/// track, scaled by that metric's own shared maximum. A zero renders a
+/// truly empty track; an absent counter renders `?`. The whole span binds
+/// to the spec's color (kills green, deaths red, assists blue) so the
+/// binding survives palette degradation — only colors degrade, never a
+/// bar itself (viz:R5/S2, S3).
+fn metric_span(letter: &str, value: Option<u32>, max: u64, color: Color) -> Span<'static> {
+    let track = match value {
+        Some(value) => {
+            let filled = scaled_cells(u64::from(value), max, KDA_TRACK_CELLS);
+            format!(
+                "{letter}{}{}",
+                Glyph::FullBlock.symbol().repeat(filled),
+                " ".repeat(KDA_TRACK_CELLS - filled),
+            )
+        }
+        None => format!("{letter}?{}", " ".repeat(KDA_TRACK_CELLS - 1)),
+    };
+    Span::styled(track, Style::default().fg(color))
 }
 
 /// The level bar: `filled` full blocks followed by light-shade empty track,

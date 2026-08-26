@@ -238,6 +238,167 @@ fn overrange_and_underrange_levels_clamp_without_panicking() {
     );
 }
 
+// --- Task 4.4 / viz spec R5: K/D/A mini-bars --------------------------------
+
+/// Frozen row-contract width of one K/D/A sub-track (mirrors team.rs).
+const METRIC_TRACK_CELLS: usize = 8;
+
+/// One labeled K/D/A sub-track (`K`, `D`, or `A`) of a visualization row:
+/// the letter plus its FIXED-width track. Operates in CHAR space — block
+/// glyphs are multi-byte — and must not stop at the first blank cell (an
+/// empty track is blank by definition).
+fn metric_track(row: &str, label: char) -> String {
+    let chars: Vec<char> = row.chars().collect();
+    let start = chars
+        .windows(2)
+        .position(|w| w == [' ', label])
+        .unwrap_or_else(|| panic!("missing {label} section"));
+    let end = (start + 2 + METRIC_TRACK_CELLS).min(chars.len());
+    chars[start + 1..end].iter().collect()
+}
+
+fn filled_cells(track: impl AsRef<str>) -> usize {
+    track
+        .as_ref()
+        .chars()
+        .filter(|c| *c == '\u{2588}')
+        .count()
+}
+
+/// viz:R5 — each mini-bar scales by ITS OWN metric's shared maximum across
+/// visible players (not by any global counter max): with kills 2/4,
+/// deaths 1/2 and assists 4/8 across two players, every second player bar
+/// fills its whole 8-cell track and every first-player bar fills exactly
+/// half of it — independently per metric.
+#[test]
+fn kda_mini_bars_scale_by_each_metrics_own_shared_max() {
+    let mut alpha = ps(Some(Team::Order), Some(9.0));
+    (alpha.kills, alpha.deaths, alpha.assists) = (Some(2), Some(1), Some(4));
+    let mut beta = ps(Some(Team::Chaos), Some(9.0));
+    (beta.kills, beta.deaths, beta.assists) = (Some(4), Some(2), Some(8));
+
+    let buffer = draw(&live_app_with(vec![alpha, beta]));
+    let rows = viz_rows(&buffer);
+    assert_eq!(rows.len(), 2);
+
+    let first_k = metric_track(&rows[0], 'K');
+    let second_k = metric_track(&rows[1], 'K');
+    assert_eq!(filled_cells(&first_k), 4, "kills half-of-max: {first_k}");
+    assert_eq!(filled_cells(&second_k), 8, "kills at-max: {second_k}");
+
+    let first_d = metric_track(&rows[0], 'D');
+    let second_d = metric_track(&rows[1], 'D');
+    assert_eq!(
+        filled_cells(&first_d),
+        4,
+        "deaths scale independently: {first_d}"
+    );
+    assert_eq!(filled_cells(&second_d), 8, "deaths at-max: {second_d}");
+
+    let first_a = metric_track(&rows[0], 'A');
+    let second_a = metric_track(&rows[1], 'A');
+    assert_eq!(
+        filled_cells(&first_a),
+        4,
+        "assists scale independently: {first_a}"
+    );
+    assert_eq!(filled_cells(&second_a), 8, "assists at-max: {second_a}");
+}
+
+/// viz:R5/S3 — the three segments bind to green/red/blue respectively; the
+/// palette may degrade on 16-color hosts, but the binding itself is fixed.
+#[test]
+fn kda_segments_bind_to_green_red_and_blue() {
+    let mut player = ps(Some(Team::Order), Some(9.0));
+    (player.kills, player.deaths, player.assists) = (Some(1), Some(1), Some(1));
+
+    let buffer = draw(&live_app_with(vec![player]));
+    let row_y = (0..buffer.area.height)
+        .find(|&y| row_text(&buffer, y).starts_with("Lv"))
+        .expect("visualization row");
+
+    let mut seen = std::collections::HashSet::new();
+    for x in 0..buffer.area.width {
+        let cell = &buffer[(x, row_y)];
+        if cell.symbol() != " " {
+            seen.insert(cell.fg);
+        }
+    }
+    for expected in [
+        ratatui::style::Color::Green,
+        ratatui::style::Color::Red,
+        ratatui::style::Color::Blue,
+    ] {
+        assert!(
+            seen.contains(&expected),
+            "segment color binding missing {expected:?}: {seen:?}"
+        );
+    }
+}
+
+/// viz:R5/S2 — a zero death keeps ALL THREE segments drawn (letters never
+/// vanish) while the death track stays truly empty, and no numeric value —
+/// raw or derived, e.g. a (K+A)/D ratio — ever appears on a visualization
+/// row: they carry glyphs and letters only.
+#[test]
+fn zero_deaths_keep_all_three_segments_and_display_no_numbers() {
+    let mut player = ps(Some(Team::Order), Some(9.0));
+    (player.kills, player.deaths, player.assists) = (Some(3), Some(0), Some(2));
+
+    let buffer = draw(&live_app_with(vec![player]));
+    let rows = viz_rows(&buffer);
+    assert_eq!(rows.len(), 1);
+
+    let row = &rows[0];
+    for label in ['K', 'D', 'A'] {
+        assert!(
+            metric_track(row, label).starts_with(label),
+            "all three labeled segments must stay drawn: {row:?}"
+        );
+    }
+    assert_eq!(
+        filled_cells(metric_track(row, 'D')),
+        0,
+        "zero deaths must be a true zero bar: {row:?}"
+    );
+    assert!(
+        !row.chars().any(|c| c.is_ascii_digit()),
+        "no counters or derived ratios belong on visualization rows: {row:?}"
+    );
+}
+
+/// Absent counters degrade per section: an omitted kills value shows `?`
+/// while sibling metrics keep scaling normally.
+#[test]
+fn absent_counter_renders_placeholder_without_touching_sibling_metrics() {
+    let mut absent_kills = ps(Some(Team::Order), Some(9.0));
+    (absent_kills.kills, absent_kills.deaths, absent_kills.assists) =
+        (None, Some(2), Some(2));
+    let mut intact = ps(Some(Team::Chaos), Some(9.0));
+    (intact.kills, intact.deaths, intact.assists) = (Some(4), Some(4), Some(4));
+
+    let buffer = draw(&live_app_with(vec![absent_kills, intact]));
+    let rows = viz_rows(&buffer);
+    assert_eq!(rows.len(), 2);
+
+    let kills = metric_track(&rows[0], 'K');
+    assert!(
+        kills.starts_with("K?"),
+        "absent kills must show the placeholder: {kills:?}"
+    );
+    assert_eq!(filled_cells(kills), 0, "placeholder fabricates no bar");
+    assert_eq!(
+        filled_cells(metric_track(&rows[0], 'D')),
+        4,
+        "deaths still scale by their own shared max"
+    );
+    assert_eq!(
+        filled_cells(metric_track(&rows[1], 'K')),
+        8,
+        "other players' bars unaffected"
+    );
+}
+
 /// Unit-layer pin of the fixed mapping itself, including the absurd-input
 /// saturations the rendered tests cannot reach through a payload.
 #[test]
