@@ -170,6 +170,110 @@ fn all_zero_creep_scores_render_true_zero_bars_without_placeholders() {
     }
 }
 
+// --- Task 4.3 / viz spec R4: level bars on a fixed scale --------------------
+
+/// Everything between the `Lv` label and the kills section: a 10-cell track
+/// of filled (`█`) and empty (`░`) cells — or the absence placeholder.
+fn level_track(row: &str) -> &str {
+    let start = row.find("Lv").expect("level label on visualization row");
+    let end = row[start..]
+        .find(" K")
+        .map(|i| start + i)
+        .unwrap_or(row.len());
+    &row[start + 2..end]
+}
+
+/// viz:R4/S1 — the scale NEVER rescales between frames: level 1 draws
+/// near-empty (exactly zero filled cells) and level 18 draws full on the
+/// same fixed 1–18 mapping.
+#[test]
+fn level_bars_pin_fixed_scale_endpoints() {
+    let mut low = ps(Some(Team::Order), Some(9.0));
+    low.level = Some(1);
+    let mut maxed = ps(Some(Team::Chaos), Some(9.0));
+    maxed.level = Some(18);
+
+    let buffer = draw(&live_app_with(vec![low, maxed]));
+    let rows = viz_rows(&buffer);
+    assert_eq!(rows.len(), 2);
+
+    assert_eq!(
+        level_track(&rows[0]).chars().filter(|c| *c == '\u{2588}').count(),
+        0,
+        "level 1 must sit at the bottom of the fixed scale: {0:?}",
+        rows[0]
+    );
+    let maxed_track = level_track(&rows[1]);
+    assert_eq!(
+        maxed_track.chars().filter(|c| *c == '\u{2588}').count(),
+        10,
+        "level 18 must fill the whole fixed track: {maxed_track:?}"
+    );
+}
+
+/// viz:R4/S2 — out-of-range levels clamp into [0, 1] and never panic:
+/// 25 renders full; 0 clamps to the empty end.
+#[test]
+fn overrange_and_underrange_levels_clamp_without_panicking() {
+    let mut over = ps(Some(Team::Order), Some(9.0));
+    over.level = Some(25);
+    let mut under = ps(Some(Team::Chaos), Some(9.0));
+    under.level = Some(0);
+
+    let buffer = draw(&live_app_with(vec![over, under]));
+    let rows = viz_rows(&buffer);
+    assert_eq!(rows.len(), 2, "both players render");
+
+    assert_eq!(
+        level_track(&rows[0]).chars().filter(|c| *c == '\u{2588}').count(),
+        10,
+        "level 25 must clamp to a full bar: {0:?}",
+        rows[0]
+    );
+    assert_eq!(
+        level_track(&rows[1]).chars().filter(|c| *c == '\u{2588}').count(),
+        0,
+        "level 0 must clamp to an empty bar: {0:?}",
+        rows[1]
+    );
+}
+
+/// Unit-layer pin of the fixed mapping itself, including the absurd-input
+/// saturations the rendered tests cannot reach through a payload.
+#[test]
+fn level_fill_cells_follows_the_fixed_mapping_exactly() {
+    assert_eq!(tui_lol::ui::team::level_fill_cells(1), 0);
+    assert_eq!(tui_lol::ui::team::level_fill_cells(18), 10);
+    assert_eq!(tui_lol::ui::team::level_fill_cells(0), 0);
+    assert_eq!(tui_lol::ui::team::level_fill_cells(25), 10);
+    assert_eq!(tui_lol::ui::team::level_fill_cells(u32::MAX), 10);
+}
+
+/// Absent level renders the explicit placeholder in its own track only;
+/// another player's bar is unaffected.
+#[test]
+fn absent_level_renders_placeholder_while_other_bars_render() {
+    let mut present = ps(Some(Team::Order), Some(9.0));
+    present.level = Some(18);
+    let absent = ps(Some(Team::Chaos), Some(9.0));
+
+    let buffer = draw(&live_app_with(vec![present, absent]));
+    let rows = viz_rows(&buffer);
+    assert_eq!(rows.len(), 2);
+
+    assert_eq!(
+        level_track(&rows[0]).chars().filter(|c| *c == '\u{2588}').count(),
+        10,
+        "populated level keeps its bar: {0:?}",
+        rows[0]
+    );
+    let absent_track = level_track(&rows[1]);
+    assert!(
+        absent_track.trim_start().starts_with('?'),
+        "absent level must show the placeholder: {absent_track:?}"
+    );
+}
+
 /// The visualization block is additive and regional: each row sits BELOW
 /// the legacy text panel of its team, inside the body band, and never
 /// touches the status row.

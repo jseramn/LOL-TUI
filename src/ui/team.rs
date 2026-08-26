@@ -53,6 +53,7 @@
 //!
 //! Implemented in Phase 4 (tasks 4.2–4.5).
 
+use crate::glyphs::Glyph;
 use crate::history::chart_u64;
 use crate::model::snapshot::{PlayerSnapshot, Snapshot, Team};
 use ratatui::Frame;
@@ -116,7 +117,7 @@ fn render_row(frame: &mut Frame, row: Rect, player: &PlayerSnapshot, cs_max: u64
         width: prefix_width,
         ..row
     };
-    frame.render_widget(prefix_paragraph(), prefix);
+    frame.render_widget(Paragraph::new(prefix_line(player)), prefix);
 
     let chart_area = Rect {
         x: row.x + prefix_width,
@@ -138,13 +139,21 @@ fn render_row(frame: &mut Frame, row: Rect, player: &PlayerSnapshot, cs_max: u64
     }
 }
 
-/// The fixed-prefix label line: section letters plus BLANK tracks. Sections
-/// gain their glyphs from tasks 4.3–4.5; the geometry is frozen here so the
-/// column layout never shifts between tasks or players.
-fn prefix_paragraph() -> Paragraph<'static> {
+/// Maps a level onto the FIXED 1–18 scale (viz:R4): `(level − 1) / 17`
+/// clamped into [0, 1], expressed in whole track cells. The mapping never
+/// rescales between frames and never panics — absurd values saturate.
+pub fn level_fill_cells(level: u32) -> usize {
+    let ratio = ((f64::from(level) - 1.0) / 17.0).clamp(0.0, 1.0);
+    (ratio * f64::from(LEVEL_TRACK_CELLS as u16)).round() as usize
+}
+
+/// The fixed-prefix label line for one player: section letters plus each
+/// family's track content. Sections gain their glyphs from tasks 4.3–4.5;
+/// the geometry is frozen so columns align across players and tasks.
+fn prefix_line(player: &PlayerSnapshot) -> Line<'static> {
     let mut spans = vec![
         Span::from("Lv"),
-        Span::from(" ".repeat(LEVEL_TRACK_CELLS)),
+        Span::from(level_track(player.level)),
         Span::from(" K"),
         Span::from(" ".repeat(KDA_TRACK_CELLS)),
         Span::from(" D"),
@@ -154,7 +163,28 @@ fn prefix_paragraph() -> Paragraph<'static> {
         Span::from(" CS"),
     ];
     spans.shrink_to_fit();
-    Paragraph::new(Line::from(spans))
+    Line::from(spans)
+}
+
+/// The level bar: `filled` full blocks followed by light-shade empty track,
+/// or the explicit `?` placeholder when the payload omitted the level.
+/// Glyphs flow exclusively through the whitelist module (design D8).
+fn level_track(level: Option<u32>) -> String {
+    match level {
+        Some(level) => {
+            let filled = level_fill_cells(level);
+            // The ratio is clamped into [0, 1] first, so `filled` can never
+            // exceed the track width.
+            let blocks = Glyph::FullBlock.symbol().repeat(filled);
+            let shades =
+                Glyph::LightShade.symbol().repeat(LEVEL_TRACK_CELLS - filled);
+            format!("{blocks}{shades}")
+        }
+        None => format!(
+            "?{}",
+            " ".repeat(LEVEL_TRACK_CELLS.saturating_sub(1))
+        ),
+    }
 }
 
 /// One-line paragraph holding `text`, clipped to whatever rect it gets.
