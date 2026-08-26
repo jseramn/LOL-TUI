@@ -11,7 +11,7 @@
 //! Compliance (design): the respawn value printed here is the exposed
 //! snapshot value verbatim — nothing is derived or counted down locally.
 
-use super::{Regions, draw_lines};
+use super::{LiveLayout, draw_lines};
 use crate::api::poller::Clock;
 use crate::app::App;
 use crate::model::snapshot::{LocalPlayerSnapshot, PlayerSnapshot, Snapshot, Team};
@@ -24,21 +24,24 @@ pub const UNKNOWN: &str = "?";
 
 /// Renders the in-game view into the shell's regions: headline plus
 /// team-grouped panels for the latest snapshot, then the event ticker in
-/// its own band. With no snapshot yet (lifecycle arrived first), only the
-/// headline draws — never a panic, whatever the frame size.
-pub(crate) fn render<C: Clock>(frame: &mut Frame, app: &App<C>, regions: &Regions) {
-    draw_lines(frame, regions.header, &["LIVE".to_owned()]);
+/// its own band. Widget families render only when the degradation matrix
+/// (`layout.visible`, design D9) keeps them visible at this viewport.
+/// With no snapshot yet (lifecycle arrived first), only the headline
+/// draws — never a panic, whatever the frame size.
+pub(crate) fn render<C: Clock>(frame: &mut Frame, app: &App<C>, layout: &LiveLayout) {
+    draw_lines(frame, layout.areas.header, &["LIVE".to_owned()]);
 
     let Some(snapshot) = app.snapshot() else {
         return;
     };
-    draw_snapshot(snapshot, app.gold_window(), regions, frame);
+    draw_snapshot(snapshot, app.gold_window(), layout, frame);
 }
 
-fn draw_snapshot<G>(snapshot: &Snapshot, gold_window: G, regions: &Regions, frame: &mut Frame)
+fn draw_snapshot<G>(snapshot: &Snapshot, gold_window: G, layout: &LiveLayout, frame: &mut Frame)
 where
     G: Iterator<Item = Option<u64>>,
 {
+    let regions = &layout.areas;
     let mut panel_lines: Vec<String> = Vec::new();
     for (header, team) in [("Team ORDER", Team::Order), ("Team CHAOS", Team::Chaos)] {
         let members: Vec<&PlayerSnapshot> = snapshot
@@ -58,7 +61,9 @@ where
 
     // Team-column visualizations (viz spec R3–R6): additive rows BELOW the
     // legacy text panels inside the same body band, clipped at its edge.
-    // The text content above is untouched — standing panel pins hold.
+    // The text content above is untouched — standing panel pins hold — and
+    // the families themselves obey the degradation matrix's visible set
+    // (viz:R9): below their tier they draw nothing at all.
     let used_rows = panel_lines.len().min(regions.body.height as usize) as u16;
     if regions.body.height > used_rows {
         let viz_area = Rect {
@@ -66,13 +71,14 @@ where
             height: regions.body.height - used_rows,
             ..regions.body
         };
-        super::team::render(frame, snapshot, viz_area);
+        super::team::render(frame, snapshot, viz_area, layout.visible);
     }
 
     // Local-player strip (ui spec R4): the ONLY surface that ever renders
     // gold. `activePlayer` absent from the payload → no strip at all. The
     // band's first row keeps the legacy text line byte-for-byte; the rows
-    // below it host the gauge/sparkline widgets (tasks 4.6–4.7).
+    // below it host the gauge/sparkline widgets (tasks 4.6–4.7). Gauges are
+    // untiered; only the sparkline obeys the matrix.
     if let Some(local) = &snapshot.local {
         let legacy_row = Rect {
             height: regions.local.height.min(1),
@@ -85,7 +91,13 @@ where
                 height: regions.local.height - 1,
                 ..regions.local
             };
-            super::local_strip::render(frame, local, gold_window, widget_rows);
+            super::local_strip::render(
+                frame,
+                local,
+                gold_window,
+                widget_rows,
+                layout.visible.sparkline,
+            );
         }
     }
 

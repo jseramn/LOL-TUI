@@ -21,7 +21,15 @@
 //! viewport from 1×1 through 200×60 (viz:R9/S2), with all regions pairwise
 //! disjoint so no widget can ever overwrite the notice.
 
+use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
+use ratatui::{Terminal, backend::TestBackend};
+use tui_lol::api::poller::{Lifecycle, PollMsg};
+use tui_lol::app::App;
+use tui_lol::glyphs::ALL_CODEPOINTS;
+use tui_lol::model::live_data::LiveData;
+use tui_lol::model::snapshot::Snapshot;
+use tui_lol::ui::status::RIOT_NOTICE;
 use tui_lol::ui::{ChartSet, LiveLayout, select_layout};
 
 /// One chart-family visibility set with exactly the given members.
@@ -207,6 +215,163 @@ fn status_row_is_present_for_every_viewport_from_1x1_to_200x60() {
                     );
                 }
             }
+        }
+    }
+}
+
+// --- Task 5.2 / viz spec R10: the visible set governs what renders ---
+
+fn snapshot_from_fixture(name: &str) -> Snapshot {
+    let raw = std::fs::read_to_string(format!("tests/fixtures/allgamedata/{name}.json"))
+        .expect("fixture file");
+    let data: LiveData = serde_json::from_str(&raw).expect("valid fixture JSON");
+    Snapshot::from_live(&data)
+}
+
+/// A live app fed one accepted snapshot (one gold sample ⇒ warm-up state).
+fn live_app_with_snapshot(fixture: &str) -> App {
+    let mut app = App::new();
+    app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
+    app.on_msg(PollMsg::Snapshot(Box::new(snapshot_from_fixture(fixture))));
+    app
+}
+
+/// A live app fed TWO same-game snapshots (two real samples ⇒ the gold
+/// sparkline draws its chart instead of the warm-up text — design D6).
+fn live_app_with_two_same_game_snapshots(fixture: &str) -> App {
+    let mut app = live_app_with_snapshot(fixture);
+    app.on_msg(PollMsg::Snapshot(Box::new(snapshot_from_fixture(fixture))));
+    app
+}
+
+/// Draws one frame at `width × height` and returns the buffer.
+fn draw_at(app: &App, width: u16, height: u16) -> Buffer {
+    let mut terminal = Terminal::new(TestBackend::new(width, height)).expect("test backend");
+    let frame = terminal.draw(|f| tui_lol::ui::render(f, app)).expect("frame");
+    frame.buffer.clone()
+}
+
+/// Flattens one buffer row into a string for whole-line assertions.
+fn row_text(buffer: &Buffer, y: u16) -> String {
+    (0..buffer.area.width)
+        .map(|x| buffer[(x, y)].symbol())
+        .collect()
+}
+
+fn any_row_contains(buffer: &Buffer, needle: &str) -> bool {
+    (0..buffer.area.height).any(|y| row_text(buffer, y).contains(needle))
+}
+
+/// Task 5.1's pure set decides visibility; task 5.2 wires it. Below the
+/// 40-column chart floor NO team visualization row may draw at all — not
+/// even a clipped prefix. Before wiring, the clipped `Lv…` track
+/// paragraphs still rendered at this size; after wiring they must vanish.
+#[test]
+fn widths_below_the_chart_floor_render_no_visualization_rows() {
+    let app = live_app_with_snapshot("full");
+    // 60 rows give the body band ample spare space BELOW its twelve legacy
+    // panel lines, so the probe exercises the visualization rows that DO
+    // draw pre-wiring at this width (at short heights they would simply
+    // clip away and the check would pass vacuously).
+    for height in [24u16, 60] {
+        let buffer = draw_at(&app, 39, height);
+
+        for y in 0..buffer.area.height {
+            let row = row_text(&buffer, y);
+            assert!(
+                !row.trim_start().starts_with("Lv█") && !row.trim_start().starts_with("Lv░"),
+                "39x{height} row {y} draws a clipped visualization row below the chart floor: {row:?}"
+            );
+        }
+    }
+}
+
+/// The sparkline hides FIRST (viz:R9 priority order): at 23 rows the gold
+/// trend row must be blank even though the band still has its fourth row;
+/// at 24 rows the sparkline is back.
+#[test]
+fn sparkline_hides_at_23_rows_and_returns_at_24() {
+    let app = live_app_with_snapshot("full");
+
+    let short = draw_at(&app, 80, 23);
+    assert!(
+        !any_row_contains(&short, "GOLD warming up"),
+        "23 rows hide the sparkline tier; no warm-up text may render"
+    );
+
+    let full = draw_at(&app, 80, 24);
+    assert!(
+        any_row_contains(&full, "GOLD warming up"),
+        "24 rows restore the sparkline tier; warm-up text must render"
+    );
+}
+
+/// Gauges belong to NO hide tier (viz:R9 omits them from the matrix): the
+/// HP gauge label renders at heights where every chart family is hidden —
+/// both at the 12-row minimum viewport and below the 40-column floor.
+#[test]
+fn gauges_render_even_when_every_chart_tier_is_hidden() {
+    let app = live_app_with_snapshot("full");
+
+    let minimum = draw_at(&app, 80, 12);
+    assert!(
+        any_row_contains(&minimum, "LOCAL HP"),
+        "gauge must stay on at the minimum viewport"
+    );
+
+    let narrow = draw_at(&app, 39, 12);
+    assert!(
+        any_row_contains(&narrow, "LOCAL HP"),
+        "gauge must stay on regardless of the chart width floor"
+    );
+}
+
+/// viz:R10/S1 — an 80×24 frame with complete data (all six widget
+/// families live, sparkline past warm-up) is glyph-pure cell by cell:
+/// whitelist codepoints or printable ASCII only.
+#[test]
+fn full_frame_purity_scan_at_80x24_with_complete_data() {
+    let app = live_app_with_two_same_game_snapshots("full");
+    let buffer = draw_at(&app, 80, 24);
+
+    let mut offender = None;
+    'scan: for y in 0..buffer.area.height {
+        for x in 0..buffer.area.width {
+            let symbol = buffer[(x, y)].symbol();
+            let pure = symbol
+                .chars()
+                .all(|c| c.is_ascii_graphic() || c == ' ' || ALL_CODEPOINTS.contains(&c));
+            if !pure {
+                offender = Some((x, y, symbol.to_owned()));
+                break 'scan;
+            }
+        }
+    }
+    assert!(
+        offender.is_none(),
+        "impure cell at {:?} — outside whitelist ∪ printable ASCII",
+        offender
+    );
+}
+
+/// ui:R6 re-pin across the WHOLE degradation matrix: at every tier
+/// boundary — and every degenerate size between them — the Riot notice
+/// owns the final row unoverlapped.
+#[test]
+fn notice_stays_on_the_final_row_across_all_tier_boundaries() {
+    let app = live_app_with_snapshot("full");
+    let heights = [1u16, 2, 5, 9, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 23, 24];
+    for width in [39u16, 40, 80] {
+        for height in heights {
+            let buffer = draw_at(&app, width, height);
+            let status = row_text(&buffer, height - 1);
+            // Below 44 columns the notice clips to the row; every cell it
+            // manages to render must still be the notice's exact prefix.
+            let expected = &RIOT_NOTICE[..RIOT_NOTICE.len().min(usize::from(width))];
+            assert!(
+                status.starts_with(expected),
+                "{width}x{height}: final row must carry the Riot notice, got {status:?}"
+            );
         }
     }
 }

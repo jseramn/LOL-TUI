@@ -230,9 +230,9 @@ pub fn render<C: Clock>(frame: &mut Frame, app: &App<C>) {
             status::render(frame, app);
         }
         Phase::InGame { .. } => {
-            let regions = split_regions(area);
-            dashboard::render(frame, app, &regions);
-            status::render_into(frame, app, regions.status);
+            let layout = select_layout(area);
+            dashboard::render(frame, app, &layout);
+            status::render_into(frame, app, layout.areas.status);
         }
     }
 }

@@ -53,6 +53,7 @@
 //!
 //! Implemented in Phase 4 (tasks 4.2–4.5).
 
+use super::ChartSet;
 use crate::glyphs::Glyph;
 use crate::history::chart_u64;
 use crate::model::snapshot::{ItemSnapshot, PlayerSnapshot, Snapshot, Team};
@@ -69,10 +70,18 @@ const KDA_TRACK_CELLS: usize = 8;
 /// Fixed cell count of the inventory fill strip (slots 0–5; task 4.5).
 const INVENTORY_CELLS: usize = 6;
 
-/// Width of the fixed prefix every row carries before the CS chart:
-/// `Lv` + level track + one-space separator + three labeled K/D/A tracks
-/// (each letter + 8 cells) with separators + the `CS` label.
-const PREFIX_CELLS: u16 = 2 + LEVEL_TRACK_CELLS as u16 + 1 + 9 + 1 + 9 + 1 + 9 + 1 + 2;
+/// Prefix width in cells for a given visibility set: each visible family
+/// contributes its fixed section, plus single-space separators between
+/// adjacent sections. The full tier (`ChartSet::ALL` team families) must
+/// keep reproducing the frozen U3 row contract: `Lv<10> K<8> D<8> A<8> CS`
+/// = 45 cells.
+fn prefix_cells(visible: ChartSet) -> u16 {
+    let section_cells = visible.level as u16 * (2 + LEVEL_TRACK_CELLS as u16)
+        + visible.kda as u16 * 3 * (1 + KDA_TRACK_CELLS as u16)
+        + visible.cs as u16 * 2;
+    let section_count = visible.level as u16 + visible.kda as u16 * 3 + visible.cs as u16;
+    section_cells.saturating_add(section_count.saturating_sub(1))
+}
 
 /// Separator cell between the CS chart and the inventory strip.
 const INVENTORY_GAP: u16 = 1;
@@ -81,15 +90,18 @@ const INVENTORY_GAP: u16 = 1;
 /// it is excluded from the fill count (design D3).
 const TRINKET_SLOT: u8 = 6;
 
-/// Renders the four team-column widget families into `area`, one row per
-/// visible player in roster order (ORDER block first, mirroring the legacy
-/// text panels). Extra players clip silently; an empty area is a no-op.
+/// Renders the team-column widget families the degradation matrix marked
+/// visible into `area`, one row per visible player in roster order (ORDER
+/// block first, mirroring the legacy text panels). Hidden families omit
+/// their whole section — track, label, chart or strip — from every row;
+/// with all four families hidden the band draws nothing at all. Extra
+/// players clip silently; an empty area is a no-op.
 ///
 /// The CS maximum is GLOBAL — the highest converted score among ALL visible
 /// players of both teams (viz:R3/S1) — computed through the sole f64→u64
 /// conversion path (design D5).
-pub(super) fn render(frame: &mut Frame, snapshot: &Snapshot, area: Rect) {
-    if area.is_empty() {
+pub(super) fn render(frame: &mut Frame, snapshot: &Snapshot, area: Rect, visible: ChartSet) {
+    if area.is_empty() || !(visible.cs || visible.level || visible.kda || visible.inventory) {
         return;
     }
     let roster: Vec<&PlayerSnapshot> = [Team::Order, Team::Chaos]
@@ -131,26 +143,35 @@ pub(super) fn render(frame: &mut Frame, snapshot: &Snapshot, area: Rect) {
             height: 1,
             ..area
         };
-        render_row(frame, row, player, cs_max, kda_max);
+        render_row(frame, row, player, cs_max, kda_max, visible);
     }
 }
 
-/// Draws one player's visualization row: fixed-prefix sections plus the
-/// shared-maximum CS chart (or the explicit placeholder).
+/// Draws one player's visualization row: only the sections the degradation
+/// matrix left visible — fixed-prefix tracks first, then the
+/// shared-maximum CS chart (or the explicit placeholder), then the
+/// inventory strip.
 fn render_row(
     frame: &mut Frame,
     row: Rect,
     player: &PlayerSnapshot,
     cs_max: u64,
     kda_max: (u64, u64, u64),
+    visible: ChartSet,
 ) {
-    let prefix_width = PREFIX_CELLS.min(row.width);
+    let prefix_width = prefix_cells(visible).min(row.width);
     let prefix = Rect {
         width: prefix_width,
         ..row
     };
-    frame.render_widget(Paragraph::new(prefix_line(player, kda_max)), prefix);
+    frame.render_widget(
+        Paragraph::new(prefix_spans(player, kda_max, visible)),
+        prefix,
+    );
 
+    if !visible.cs {
+        return;
+    }
     let chart_area = Rect {
         x: row.x + prefix_width,
         width: row.width - prefix_width,
@@ -160,11 +181,11 @@ fn render_row(
         return;
     }
 
-    // Reserve the trailing inventory strip when the row is wide enough;
-    // otherwise the strip clips away with the rest of the row (P5 tiers
-    // will govern visibility properly).
+    // Reserve the trailing inventory strip for the CS chart's right edge
+    // when the tier keeps it visible and the row is wide enough; otherwise
+    // the strip clips away with the rest of the row.
     let inv_room = INVENTORY_GAP + INVENTORY_CELLS as u16;
-    let (chart_area, inv_area) = if chart_area.width > inv_room {
+    let (chart_area, inv_area) = if visible.inventory && chart_area.width > inv_room {
         let chart = Rect {
             width: chart_area.width - inv_room,
             ..chart_area
@@ -245,20 +266,44 @@ pub fn scaled_cells(value: u64, max: u64, track: usize) -> usize {
     (((value * track) + (max / 2)) / max).min(track) as usize
 }
 
-/// The fixed-prefix label line for one player: each family's section with
-/// its track content. Geometry is frozen so columns align across players.
-fn prefix_line(player: &PlayerSnapshot, kda_max: (u64, u64, u64)) -> Line<'static> {
-    Line::from(vec![
-        Span::from("Lv"),
-        Span::from(level_track(player.level)),
-        Span::from(" "),
-        metric_span("K", player.kills, kda_max.0, Color::Green),
-        Span::from(" "),
-        metric_span("D", player.deaths, kda_max.1, Color::Red),
-        Span::from(" "),
-        metric_span("A", player.assists, kda_max.2, Color::Blue),
-        Span::from(" CS"),
-    ])
+/// The fixed-prefix label spans for one player: only the sections the
+/// degradation matrix keeps visible, joined by single spaces. With every
+/// team family visible the emitted bytes are IDENTICAL to the pre-tier
+/// frozen contract (`Lv<10> K<8> D<8> A<8> CS`).
+fn prefix_spans(
+    player: &PlayerSnapshot,
+    kda_max: (u64, u64, u64),
+    visible: ChartSet,
+) -> Line<'static> {
+    let mut spans: Vec<Span<'static>> = Vec::with_capacity(5);
+    if visible.level {
+        // Label and track are ONE section — fusing them keeps the emitted
+        // element count equal to `prefix_cells`'s section count, so the
+        // full-tier prefix stays exactly 45 cells.
+        spans.push(Span::from(format!("Lv{}", level_track(player.level))));
+    }
+    if visible.kda {
+        spans.push(metric_span("K", player.kills, kda_max.0, Color::Green));
+        spans.push(metric_span("D", player.deaths, kda_max.1, Color::Red));
+        spans.push(metric_span("A", player.assists, kda_max.2, Color::Blue));
+    }
+    if visible.cs {
+        spans.push(Span::from("CS"));
+    }
+    join_with_spaces(spans)
+}
+
+/// Collapses a span list into one line, inserting single-space separators
+/// between adjacent spans (the frozen row-contract separator).
+fn join_with_spaces(spans: Vec<Span<'static>>) -> Line<'static> {
+    let mut line = Line::default();
+    for (i, span) in spans.into_iter().enumerate() {
+        if i > 0 {
+            line.push_span(Span::from(" "));
+        }
+        line.push_span(span);
+    }
+    line
 }
 
 /// One labeled K/D/A mini-bar: the metric letter followed by its fixed
