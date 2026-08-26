@@ -5,7 +5,9 @@
 //! paragraph. The live branch computes a [`LiveLayout`] through
 //! [`select_layout`] — a PURE function of the frame rectangle (designs
 //! D9/D10): it splits the frame into disjoint region rects via
-//! [`split_regions`] (design D2) and derives which chart families the
+//! [`split_regions`] (design D2), splits the body band into the side-by-side
+//! ORDER/CHAOS team columns via [`split_team_columns`] (viz spec R2), and
+//! derives which chart families the
 //! current viewport can still host (the D9 degradation matrix). Each
 //! region routes to its owner view ([`dashboard`] renders header/body/
 //! local and drives the [`ticker`]), and the status line is drawn LAST so
@@ -53,6 +55,17 @@ pub struct Regions {
     pub local: Rect,
     pub ticker: Rect,
     pub status: Rect,
+}
+
+/// The body band's two SIDE-BY-SIDE team columns (viz spec R2): ORDER on
+/// the left, CHAOS on the right — never stacked, never one column vanished
+/// while the band could host both. Both columns share the body's `y` and
+/// height; `order.x + order.width == chaos.x` and the pair closes the
+/// band's right edge exactly.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TeamColumns {
+    pub order: Rect,
+    pub chaos: Rect,
 }
 
 /// Viewport width below which EVERY chart family hides, whatever the
@@ -107,9 +120,11 @@ impl ChartSet {
 }
 
 /// The pure result of the D9 degradation matrix for one frame: disjoint
-/// region rects plus the set of chart families the viewport can host.
+/// region rects, the body band's side-by-side team columns (viz spec R2),
+/// plus the set of chart families the viewport can host.
 pub struct LiveLayout {
     pub areas: Regions,
+    pub columns: TeamColumns,
     pub visible: ChartSet,
 }
 
@@ -146,9 +161,44 @@ pub fn select_layout(area: Rect) -> LiveLayout {
     if area.width < MIN_CHART_WIDTH {
         visible = ChartSet::NONE;
     }
+    let areas = split_regions(area);
     LiveLayout {
-        areas: split_regions(area),
+        columns: split_team_columns(areas.body),
+        areas,
         visible,
+    }
+}
+
+/// Splits the body band into the viz spec R2 team columns: ORDER and CHAOS
+/// SIDE BY SIDE, equal halves on even widths (floor/ceil on odd ones), both
+/// spanning the band's full height. Wherever two cells of width exist, BOTH
+/// columns are non-empty — one column may never collapse away while its
+/// sibling survives.
+///
+/// Below two cells of width no pair of non-zero disjoint columns can exist;
+/// mirroring the status-row reservation philosophy, the invariant must not
+/// depend on solver tie-breaking there, so the degenerate case is handled
+/// explicitly: ORDER takes whatever remains, CHAOS is empty, nothing
+/// escapes the band.
+pub(crate) fn split_team_columns(body: Rect) -> TeamColumns {
+    if body.width < 2 {
+        return TeamColumns {
+            order: body,
+            chaos: Rect {
+                x: body.x + body.width,
+                width: 0,
+                ..body
+            },
+        };
+    }
+    let rects = Layout::horizontal([
+        Constraint::Percentage(50),
+        Constraint::Percentage(50),
+    ])
+    .split(body);
+    TeamColumns {
+        order: rects[0],
+        chaos: rects[1],
     }
 }
 

@@ -53,7 +53,7 @@
 //!
 //! Implemented in Phase 4 (tasks 4.2–4.5).
 
-use super::ChartSet;
+use super::{ChartSet, TeamColumns};
 use crate::glyphs::Glyph;
 use crate::history::chart_u64;
 use crate::model::snapshot::{ItemSnapshot, PlayerSnapshot, Snapshot, Team};
@@ -91,17 +91,25 @@ const INVENTORY_GAP: u16 = 1;
 const TRINKET_SLOT: u8 = 6;
 
 /// Renders the team-column widget families the degradation matrix marked
-/// visible into `area`, one row per visible player in roster order (ORDER
-/// block first, mirroring the legacy text panels). Hidden families omit
-/// their whole section — track, label, chart or strip — from every row;
-/// with all four families hidden the band draws nothing at all. Extra
-/// players clip silently; an empty area is a no-op.
+/// visible, one row per visible player in roster order: ORDER players fill
+/// the left column top-down, CHAOS players the right one (viz spec R2's
+/// side-by-side columns). Hidden families omit their whole section — track,
+/// label, chart or strip — from every row; with all four families hidden
+/// nothing draws at all. Extra players clip silently; an empty column is a
+/// no-op.
 ///
 /// The CS maximum is GLOBAL — the highest converted score among ALL visible
-/// players of both teams (viz:R3/S1) — computed through the sole f64→u64
-/// conversion path (design D5).
-pub(super) fn render(frame: &mut Frame, snapshot: &Snapshot, area: Rect, visible: ChartSet) {
-    if area.is_empty() || !(visible.cs || visible.level || visible.kda || visible.inventory) {
+/// players of BOTH teams (viz:R3/S1) — computed through the sole f64→u64
+/// conversion path (design D5); each K/D/A metric likewise shares its own
+/// maximum across both teams (viz:R5). The columns change WHERE rows draw,
+/// never HOW bars scale.
+pub(super) fn render(
+    frame: &mut Frame,
+    snapshot: &Snapshot,
+    columns: TeamColumns,
+    visible: ChartSet,
+) {
+    if !(visible.cs || visible.level || visible.kda || visible.inventory) {
         return;
     }
     let roster: Vec<&PlayerSnapshot> = [Team::Order, Team::Chaos]
@@ -136,8 +144,48 @@ pub(super) fn render(frame: &mut Frame, snapshot: &Snapshot, area: Rect, visible
         counter_max(|p| p.assists),
     );
 
-    let rows = area.height.min(roster.len() as u16) as usize;
-    for (i, player) in roster.iter().take(rows).enumerate() {
+    render_team(
+        frame,
+        snapshot,
+        Team::Order,
+        columns.order,
+        cs_max,
+        kda_max,
+        visible,
+    );
+    render_team(
+        frame,
+        snapshot,
+        Team::Chaos,
+        columns.chaos,
+        cs_max,
+        kda_max,
+        visible,
+    );
+}
+
+/// Draws ONE team's visualization rows top-down inside its own side-by-side
+/// column rect, clipped at the column boundary exactly as the single-band
+/// renderer used to clip at the body edge.
+fn render_team(
+    frame: &mut Frame,
+    snapshot: &Snapshot,
+    team: Team,
+    area: Rect,
+    cs_max: u64,
+    kda_max: (u64, u64, u64),
+    visible: ChartSet,
+) {
+    if area.is_empty() {
+        return;
+    }
+    let members: Vec<&PlayerSnapshot> = snapshot
+        .players
+        .iter()
+        .filter(|p| p.team == Some(team))
+        .collect();
+    let rows = area.height.min(members.len() as u16) as usize;
+    for (i, player) in members.iter().take(rows).enumerate() {
         let row = Rect {
             y: area.y + i as u16,
             height: 1,
