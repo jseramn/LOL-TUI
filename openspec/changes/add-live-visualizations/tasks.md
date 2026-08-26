@@ -55,10 +55,10 @@ Pinned guarantees: `live-dashboard-ui` R6 notice/status unchanged; `live-client-
 
 ## Phase 2: History Primitives & App Fold (slice S3)
 
-- [ ] 2.1 RED `tests/history/` (new dir, `main.rs` harness): wrap/clear/`len`/iter oldest→newest; pushing past 120 keeps len 120; `size_of::<GoldHistory>()` ≤ 32 KiB — expect 120 × `Option<u64>` ≈ **1.9 KiB** (corrected figure, D4) (viz:R8/S4). Run CT → RED.
-- [ ] 2.2 GREEN `src/history.rs`: array-backed `RingBuffer<T, 120>`, preallocated, O(1) `push(Option<T>)`, capacity never grows; `type GoldHistory = RingBuffer<u64, 120>` as sole instantiation (D4).
-- [ ] 2.3 RED/GREEN `chart_u64(f64) -> Option<u64>`: non-finite ⇒ `None`; else truncate toward zero, saturate at 0 (vectors: 195.7/195.2 ⇒ 195; NaN ⇒ None; negative ⇒ 0) (viz:R5/S1, D5). Sole conversion path for CS + gold samples.
-- [ ] 2.4 RED/GREEN `GameIdentity` + `classify`: gameTime decrease > 5.0 s ⇒ DifferentGame; else gameMode change (both present) ⇒ DifferentGame; else SameGame — truth-table vectors incl. ±5.0 s jitter edges and degraded payloads with absent fields (D1).
+- [x] 2.1 RED `tests/history/` (new dir, `main.rs` harness): wrap/clear/`len`/iter oldest→newest; pushing past 120 keeps len 120; `size_of::<GoldHistory>()` ≤ 32 KiB — expect 120 × `Option<u64>` ≈ **1.9 KiB** (corrected figure, D4) (viz:R8/S4). Run CT → RED.
+- [x] 2.2 GREEN `src/history.rs`: array-backed `RingBuffer<T, 120>`, preallocated, O(1) `push(Option<T>)`, capacity never grows; `type GoldHistory = RingBuffer<u64, 120>` as sole instantiation (D4).
+- [x] 2.3 RED/GREEN `chart_u64(f64) -> Option<u64>`: non-finite ⇒ `None`; else truncate toward zero, saturate at 0 (vectors: 195.7/195.2 ⇒ 195; NaN ⇒ None; negative ⇒ 0) (viz:R5/S1, D5). Sole conversion path for CS + gold samples.
+- [x] 2.4 RED/GREEN `GameIdentity` + `classify`: gameTime decrease > 5.0 s ⇒ DifferentGame; else gameMode change (both present) ⇒ DifferentGame; else SameGame — truth-table vectors incl. ±5.0 s jitter edges and degraded payloads with absent fields (D1).
 - [ ] 2.5 RED `tests/app_tests.rs` extensions: fold per D4/D7 — Snapshot: DifferentGame ⇒ `clear()` then push; SameGame ⇒ push (incl. NotBound round-trip continuity); Transient-in-game ⇒ push(`None`) gap; Lifecycle messages NEVER touch history (viz:R8/S2, S3). Run CT → RED.
 - [ ] 2.6 GREEN `src/app.rs`: holds `GoldHistory` + last identity; fold-time pushes; `gold_window()` iterator oldest→newest. Poller thread untouched. Test: CT green.
 
