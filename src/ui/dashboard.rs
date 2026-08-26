@@ -1,15 +1,17 @@
 //! Team-grouped live dashboard panels (ui spec R3).
 //!
 //! The dashboard renders the [`App`]'s latest retained [`Snapshot`] every
-//! frame: a `LIVE` headline followed by an ORDER block and a CHAOS block,
-//! each listing one line-panel per player with the fields exposed by the
-//! API. Absent fields degrade explicitly (task 4.3); gold renders only on
+//! frame into the shell's disjoint regions: a `LIVE` headline in the header
+//! band, ORDER and CHAOS blocks in the body band, and the local strip in
+//! its own band — each listing one line-panel per player with the fields
+//! exposed by the API, clipped at the region boundary instead of the frame
+//! edge. Absent fields degrade explicitly (task 4.3); gold renders only on
 //! the local-player strip (task 4.4).
 //!
 //! Compliance (design): the respawn value printed here is the exposed
 //! snapshot value verbatim — nothing is derived or counted down locally.
 
-use super::Pen;
+use super::{Regions, draw_lines};
 use crate::api::poller::Clock;
 use crate::app::App;
 use crate::model::snapshot::{LocalPlayerSnapshot, PlayerSnapshot, Snapshot, Team};
@@ -19,25 +21,21 @@ use ratatui::Frame;
 /// rendered as a fabricated value (ui spec: degradation is per field).
 pub const UNKNOWN: &str = "?";
 
-/// Renders the in-game view: headline plus team-grouped panels for the
-/// latest snapshot, then the event ticker section. With no snapshot yet
-/// (lifecycle arrived first), only the headline draws — never a panic,
-/// whatever the frame size.
-pub fn render<C: Clock>(frame: &mut Frame, app: &App<C>) {
-    let area = frame.area();
-    if area.is_empty() {
-        return;
-    }
-    let mut pen = Pen::new(area);
-    pen.line("LIVE".to_owned(), frame);
+/// Renders the in-game view into the shell's regions: headline plus
+/// team-grouped panels for the latest snapshot, then the event ticker in
+/// its own band. With no snapshot yet (lifecycle arrived first), only the
+/// headline draws — never a panic, whatever the frame size.
+pub(crate) fn render<C: Clock>(frame: &mut Frame, app: &App<C>, regions: &Regions) {
+    draw_lines(frame, regions.header, &["LIVE".to_owned()]);
 
     let Some(snapshot) = app.snapshot() else {
         return;
     };
-    draw_snapshot(&mut pen, snapshot, frame);
+    draw_snapshot(snapshot, regions, frame);
 }
 
-fn draw_snapshot(pen: &mut Pen, snapshot: &Snapshot, frame: &mut Frame) {
+fn draw_snapshot(snapshot: &Snapshot, regions: &Regions, frame: &mut Frame) {
+    let mut panel_lines: Vec<String> = Vec::new();
     for (header, team) in [("Team ORDER", Team::Order), ("Team CHAOS", Team::Chaos)] {
         let members: Vec<&PlayerSnapshot> = snapshot
             .players
@@ -47,20 +45,23 @@ fn draw_snapshot(pen: &mut Pen, snapshot: &Snapshot, frame: &mut Frame) {
         if members.is_empty() {
             continue;
         }
-        pen.line(header.to_owned(), frame);
+        panel_lines.push(header.to_owned());
         for player in members {
-            pen.line(player_line(player), frame);
+            panel_lines.push(player_line(player));
         }
     }
+    draw_lines(frame, regions.body, &panel_lines);
 
     // Local-player strip (ui spec R4): the ONLY surface that ever renders
-    // gold. `activePlayer` absent from the payload → no strip at all.
+    // gold. `activePlayer` absent from the payload → no strip at all. The
+    // strip's second region row stays an empty placeholder until the gauge
+    // widgets land (task 4.x).
     if let Some(local) = &snapshot.local {
-        pen.line(local_line(local), frame);
+        draw_lines(frame, regions.local, &[local_line(local)]);
     }
 
-    // Objective/kill ticker (ui spec R5) below the panels, same cursor.
-    super::ticker::render(pen, &snapshot.events, frame);
+    // Objective/kill ticker (ui spec R5) in its own compressible band.
+    super::ticker::render(&snapshot.events, regions.ticker, frame);
 }
 
 /// Formats the distinguished local-player line:
