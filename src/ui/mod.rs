@@ -191,11 +191,8 @@ pub(crate) fn split_team_columns(body: Rect) -> TeamColumns {
             },
         };
     }
-    let rects = Layout::horizontal([
-        Constraint::Percentage(50),
-        Constraint::Percentage(50),
-    ])
-    .split(body);
+    let rects =
+        Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)]).split(body);
     TeamColumns {
         order: rects[0],
         chaos: rects[1],

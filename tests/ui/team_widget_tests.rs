@@ -668,8 +668,7 @@ fn order_and_chaos_columns_render_side_by_side() {
         "the ORDER visualization row must render at the body's left edge"
     );
     let chaos_renders = left_rows.len() > 1
-        || (0..buffer.area.height)
-            .any(|y| row_chars(y).get(mid..).is_some_and(starts_with_lv));
+        || (0..buffer.area.height).any(|y| row_chars(y).get(mid..).is_some_and(starts_with_lv));
     assert!(chaos_renders, "the CHAOS visualization row must render");
 
     // THE side-by-side contract: one physical row hosts both columns.
