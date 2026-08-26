@@ -8,6 +8,7 @@ mod glyph_tests;
 mod shell_render_tests;
 mod standby_tests;
 mod status_tests;
+mod team_widget_tests;
 mod ticker_tests;
 
 /// Deterministic clock seam (design D5) shared by UI tests that must pin
