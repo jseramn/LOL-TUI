@@ -16,7 +16,8 @@ fn main() {
     }
 
     // 2) Full reqwest stack with our exact builder options, full error chain.
-    let root = match reqwest::tls::Certificate::from_pem(include_bytes!("../assets/riotgames.pem")) {
+    let root = match reqwest::tls::Certificate::from_pem(include_bytes!("../assets/riotgames.pem"))
+    {
         Ok(r) => r,
         Err(e) => {
             println!("PEM PARSE FAILED: {e}");
@@ -30,7 +31,10 @@ fn main() {
         .build()
         .expect("builder");
     println!("REQWEST GET ...");
-    match http.get("https://127.0.0.1:2999/liveclientdata/allgamedata").send() {
+    match http
+        .get("https://127.0.0.1:2999/liveclientdata/allgamedata")
+        .send()
+    {
         Ok(resp) => println!("REQWEST OK: status {}", resp.status()),
         Err(e) => {
             println!("REQWEST ERR: {e}");

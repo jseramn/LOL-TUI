@@ -24,16 +24,13 @@ fn main() {
                 "  all_players count: {:?}",
                 d.all_players.as_ref().map(|v| v.len())
             );
-            println!(
-                "  events count: {:?}",
-                d.events.as_ref().map(|v| v.len())
-            );
+            println!("  events count: {:?}", d.events.as_ref().map(|v| v.len()));
             println!("  game_data present: {}", d.game_data.is_some());
-            if let Some(aps) = &d.all_players {
-                if let Some(p0) = aps.first() {
-                    println!("  first player summoner_name: {:?}", p0.summoner_name);
-                    println!("  first player champion_name: {:?}", p0.champion_name);
-                }
+            if let Some(aps) = &d.all_players
+                && let Some(p0) = aps.first()
+            {
+                println!("  first player summoner_name: {:?}", p0.summoner_name);
+                println!("  first player champion_name: {:?}", p0.champion_name);
             }
         }
         Err(e) => {

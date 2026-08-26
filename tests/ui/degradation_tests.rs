@@ -53,10 +53,7 @@ fn is_subset(small: &ChartSet, big: &ChartSet) -> bool {
 }
 
 fn overlaps(a: Rect, b: Rect) -> bool {
-    a.x < b.x + b.width
-        && b.x < a.x + a.width
-        && a.y < b.y + b.height
-        && b.y < a.y + a.height
+    a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
 }
 
 /// viz:R9/S1 — each height band of the D9 table computes exactly its set.
@@ -64,14 +61,26 @@ fn overlaps(a: Rect, b: Rect) -> bool {
 fn tier_boundaries_follow_the_documented_height_table() {
     let at = |height: u16| select_layout(Rect::new(0, 0, 80, height)).visible;
 
-    assert_eq!(at(12), visible(false, false, false, false, false), "≤12: none");
+    assert_eq!(
+        at(12),
+        visible(false, false, false, false, false),
+        "≤12: none"
+    );
     assert_eq!(at(1), visible(false, false, false, false, false));
 
     assert_eq!(at(13), visible(true, false, false, false, false), "13: +CS");
     assert_eq!(at(14), visible(true, false, false, false, false), "14: +CS");
 
-    assert_eq!(at(15), visible(true, true, false, false, false), "15: +level");
-    assert_eq!(at(17), visible(true, true, false, false, false), "17: +level");
+    assert_eq!(
+        at(15),
+        visible(true, true, false, false, false),
+        "15: +level"
+    );
+    assert_eq!(
+        at(17),
+        visible(true, true, false, false, false),
+        "17: +level"
+    );
 
     assert_eq!(
         at(18),
@@ -140,9 +149,13 @@ fn hiding_is_monotonic_between_smaller_and_larger_viewports() {
 /// order as height descends: gold sparkline first, then K/D/A, then
 /// inventory, then level bars; CS bars hide last. Walking every height at
 /// a chart-friendly width may switch off at most the next family in line.
+/// One entry of the hide-priority table: family name plus its visibility
+/// predicate on a computed `ChartSet`.
+type PriorityEntry<'a> = (&'a str, fn(&ChartSet) -> bool);
+
 #[test]
 fn families_hide_strictly_in_the_documented_priority_order() {
-    let priority: [(&str, fn(&ChartSet) -> bool); 5] = [
+    let priority: [PriorityEntry; 5] = [
         ("sparkline", |c| c.sparkline),
         ("kda", |c| c.kda),
         ("inventory", |c| c.inventory),
@@ -247,7 +260,9 @@ fn live_app_with_two_same_game_snapshots(fixture: &str) -> App {
 /// Draws one frame at `width × height` and returns the buffer.
 fn draw_at(app: &App, width: u16, height: u16) -> Buffer {
     let mut terminal = Terminal::new(TestBackend::new(width, height)).expect("test backend");
-    let frame = terminal.draw(|f| tui_lol::ui::render(f, app)).expect("frame");
+    let frame = terminal
+        .draw(|f| tui_lol::ui::render(f, app))
+        .expect("frame");
     frame.buffer.clone()
 }
 
@@ -360,7 +375,9 @@ fn full_frame_purity_scan_at_80x24_with_complete_data() {
 #[test]
 fn notice_stays_on_the_final_row_across_all_tier_boundaries() {
     let app = live_app_with_snapshot("full");
-    let heights = [1u16, 2, 5, 9, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 23, 24];
+    let heights = [
+        1u16, 2, 5, 9, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 23, 24,
+    ];
     for width in [39u16, 40, 80] {
         for height in heights {
             let buffer = draw_at(&app, width, height);
