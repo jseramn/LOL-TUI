@@ -49,9 +49,9 @@ Pinned guarantees: `live-dashboard-ui` R6 notice/status unchanged; `live-client-
 
 ## Phase 1: Glyph Whitelist Module (slice S1)
 
-- [ ] 1.1 RED `tests/ui/glyph_tests.rs`: enumerate every exported codepoint ∈ U+2500–257F ∪ U+2580–259F; zero Braille (U+2800–28FF)/sextant-octant exports (viz:R1/S1). Register harness per `tests/<name>/main.rs` pattern. Run CT → RED confirmed.
-- [ ] 1.2 GREEN `src/glyphs.rs`: `pub const` codepoints + `pub enum Glyph` with `pub const fn symbol(self) -> &'static str`; enum variants are the only constructors — runtime glyph construction impossible by construction (D8).
-- [ ] 1.3 RED/GREEN widget-purity net: render one trivial Glyph-driven widget to TestBackend, scan every cell ⊆ whitelist ∪ printable ASCII (viz:R1/S2). Test: CT green.
+- [x] 1.1 RED `tests/ui/glyph_tests.rs`: enumerate every exported codepoint ∈ U+2500–257F ∪ U+2580–259F; zero Braille (U+2800–28FF)/sextant-octant exports (viz:R1/S1). Register harness per `tests/<name>/main.rs` pattern. Run CT → RED confirmed.
+- [x] 1.2 GREEN `src/glyphs.rs`: `pub const` codepoints + `pub enum Glyph` with `pub const fn symbol(self) -> &'static str`; enum variants are the only constructors — runtime glyph construction impossible by construction (D8).
+- [x] 1.3 RED/GREEN widget-purity net: render one trivial Glyph-driven widget to TestBackend, scan every cell ⊆ whitelist ∪ printable ASCII (viz:R1/S2). Test: CT green.
 
 ## Phase 2: History Primitives & App Fold (slice S3)
 

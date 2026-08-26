@@ -4,6 +4,7 @@
 //! this file is the required binary root declaring the modules.
 
 mod dashboard_tests;
+mod glyph_tests;
 mod shell_render_tests;
 mod standby_tests;
 mod status_tests;
