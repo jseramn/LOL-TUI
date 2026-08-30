@@ -79,9 +79,9 @@ fn snapshot_normalizes_full_fixture() {
     assert_eq!(ranks.r, Some(1));
 
     let dumped = tui_lol::dump::dump_snapshot(&snap);
-    assert!(dumped.contains("LIVE CLASSIC 754.19s Map11"));
+    assert!(dumped.contains("LIVE  12:34  CLASSIC"));
     assert!(dumped.contains("ORDER 23 - 20 CHAOS"));
-    assert!(dumped.contains("TopLaneTitan"));
+    assert!(dumped.contains("Aatrox"));
     assert!(dumped.contains("Q4 W2 E3 R1"));
 
     assert_eq!(snap.events.len(), 9);
@@ -155,4 +155,59 @@ fn minimal_payload_normalizes_without_fabrication() {
     assert!(snap.local.is_none());
     assert!(snap.game.is_none());
     assert!(snap.events.is_empty());
+}
+
+/// Live `activePlayer.championName` is often empty; fill from the roster
+/// when summoner / riot id match. No identity match must not guess.
+#[test]
+fn local_champion_fills_from_roster_when_active_player_omits_it() {
+    let json = r#"{
+        "activePlayer": {
+            "championName": "",
+            "summonerName": "MidMage",
+            "currentGold": 10.0,
+            "level": 6
+        },
+        "allPlayers": [
+            {"championName": "Ahri", "summonerName": "MidMage", "team": "ORDER"},
+            {"championName": "Aatrox", "summonerName": "TopLaneTitan", "team": "ORDER"}
+        ]
+    }"#;
+    let snap = snapshot_of(json);
+    assert_eq!(snap.local.unwrap().champion.as_deref(), Some("Ahri"));
+}
+
+#[test]
+fn local_champion_stays_absent_without_a_roster_match() {
+    let json = r#"{
+        "activePlayer": {
+            "championName": "",
+            "summonerName": "Unknown",
+            "level": 1
+        },
+        "allPlayers": [
+            {"championName": "Ahri", "summonerName": "MidMage", "team": "ORDER"}
+        ]
+    }"#;
+    let snap = snapshot_of(json);
+    let champ = snap.local.unwrap().champion;
+    assert!(
+        champ.as_deref().is_none() || champ.as_deref() == Some(""),
+        "must not invent a champion: {champ:?}"
+    );
+}
+
+#[test]
+fn local_champion_is_not_overwritten_when_already_exposed() {
+    let json = r#"{
+        "activePlayer": {
+            "championName": "Ahri",
+            "summonerName": "MidMage"
+        },
+        "allPlayers": [
+            {"championName": "Aatrox", "summonerName": "MidMage", "team": "ORDER"}
+        ]
+    }"#;
+    let snap = snapshot_of(json);
+    assert_eq!(snap.local.unwrap().champion.as_deref(), Some("Ahri"));
 }

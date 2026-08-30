@@ -90,6 +90,11 @@ impl std::ops::Deref for EventsShape {
 #[serde(rename_all = "camelCase")]
 pub struct ActivePlayer {
     pub champion_name: Option<String>,
+    /// Live payloads often omit `championName` here; the roster match
+    /// uses these identity fields when filling the LOCAL card.
+    pub summoner_name: Option<String>,
+    pub riot_id: Option<String>,
+    pub riot_id_game_name: Option<String>,
     /// Exposed only for the local player; rendered verbatim.
     pub current_gold: Option<f64>,
     pub level: Option<u32>,

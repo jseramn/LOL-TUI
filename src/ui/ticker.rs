@@ -1,14 +1,12 @@
 //! Objective/kill event ticker fed by the snapshot event list (ui spec R5).
 //!
-//! Every supported event type renders as one line: `@{EventTime} {TYPE}
-//! {participants…}`, with the exposed `EventTime` value VERBATIM (f64
-//! display — never recomputed, never counted down; design hard rule).
-//! Fields the payload omits degrade to the explicit [`UNKNOWN`] marker.
-//! An empty event list renders an explicit empty-state message instead of
-//! failing.
+//! Times are the exposed `EventTime` values shown as `mm:ss` (presentation
+//! of the payload clock — never recomputed, never counted down). Newest
+//! events lead so a short ticker band still shows what just happened.
 
 use super::dashboard::UNKNOWN;
 use super::draw_lines;
+use super::format;
 use crate::model::snapshot::GameEvent;
 use ratatui::Frame;
 use ratatui::layout::Rect;
@@ -17,7 +15,7 @@ use ratatui::layout::Rect;
 pub(crate) const EVENTS_HEADER: &str = "EVENTS";
 
 /// Explicit empty-state for a snapshot with zero events (ui spec R5/S2).
-pub(crate) const EMPTY_EVENTS: &str = "No match events yet.";
+pub(crate) const EMPTY_EVENTS: &str = "sin eventos";
 
 /// Draws the ticker section into its assigned region: the header row, then
 /// one line per event, clipped at the band boundary.
@@ -40,33 +38,44 @@ fn ticker_lines(events: &[GameEvent]) -> Vec<String> {
     if events.is_empty() {
         lines.push(EMPTY_EVENTS.to_owned());
     } else {
-        for event in events {
+        for event in newest_first(events) {
             lines.push(event_line(event));
         }
     }
     lines
 }
 
-/// Formats one event line. The exposed time always leads the line so scan
-/// tests can pin a row by its verbatim `@{time} {TYPE}` prefix.
+fn newest_first(events: &[GameEvent]) -> Vec<&GameEvent> {
+    let mut rows: Vec<&GameEvent> = events.iter().collect();
+    rows.sort_by(|a, b| match (a.time(), b.time()) {
+        (Some(ta), Some(tb)) => tb.partial_cmp(&ta).unwrap_or(std::cmp::Ordering::Equal),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => std::cmp::Ordering::Equal,
+    });
+    rows
+}
+
+/// One scan-friendly event line: clock, then a short Spanish label and
+/// the participants the payload actually exposed.
 fn event_line(event: &GameEvent) -> String {
     let mut line = String::with_capacity(64);
     match event {
         GameEvent::GameStart { time } => {
             push_time(&mut line, *time);
-            line.push_str("GameStart");
+            line.push_str("inicio");
         }
         GameEvent::MinionsSpawning { time } => {
             push_time(&mut line, *time);
-            line.push_str("MinionsSpawning");
+            line.push_str("subditos");
         }
         GameEvent::FirstBrick { time } => {
             push_time(&mut line, *time);
-            line.push_str("FirstBrick");
+            line.push_str("primera torre");
         }
         GameEvent::FirstBlood { recipient, time } => {
             push_time(&mut line, *time);
-            line.push_str("FirstBlood recipient ");
+            line.push_str("primera sangre  ");
             push_opt(&mut line, recipient.as_deref());
         }
         GameEvent::ChampionKill {
@@ -76,15 +85,14 @@ fn event_line(event: &GameEvent) -> String {
             time,
         } => {
             push_time(&mut line, *time);
-            line.push_str("ChampionKill ");
             push_opt(&mut line, killer.as_deref());
-            line.push_str(" killed ");
+            line.push_str("  mata  ");
             push_opt(&mut line, victim.as_deref());
             push_assisters(&mut line, assisters);
         }
         GameEvent::Multikill { kill_streak, time } => {
             push_time(&mut line, *time);
-            line.push_str("Multikill streak ");
+            line.push_str("racha ");
             match kill_streak {
                 Some(streak) => line.push_str(&streak.to_string()),
                 None => line.push_str(UNKNOWN),
@@ -92,15 +100,13 @@ fn event_line(event: &GameEvent) -> String {
         }
         GameEvent::TurretKilled {
             killer,
-            turret,
+            turret: _,
             assisters,
             time,
         } => {
             push_time(&mut line, *time);
-            line.push_str("TurretKilled ");
             push_opt(&mut line, killer.as_deref());
-            line.push_str(" destroyed ");
-            push_opt(&mut line, turret.as_deref());
+            line.push_str("  torre");
             push_assisters(&mut line, assisters);
         }
         GameEvent::DragonKill {
@@ -110,9 +116,9 @@ fn event_line(event: &GameEvent) -> String {
             time,
         } => {
             push_time(&mut line, *time);
-            line.push_str("DragonKill ");
+            line.push_str("dragon ");
             push_opt(&mut line, dragon_type.as_deref());
-            line.push_str(" slain by ");
+            line.push_str("  ");
             push_opt(&mut line, killer.as_deref());
             push_stolen(&mut line, *stolen);
         }
@@ -122,7 +128,7 @@ fn event_line(event: &GameEvent) -> String {
             time,
         } => {
             push_time(&mut line, *time);
-            line.push_str("HeraldKill slain by ");
+            line.push_str("heraldo  ");
             push_opt(&mut line, killer.as_deref());
             push_stolen(&mut line, *stolen);
         }
@@ -132,65 +138,72 @@ fn event_line(event: &GameEvent) -> String {
             time,
         } => {
             push_time(&mut line, *time);
-            line.push_str("BaronKill slain by ");
+            line.push_str("baron  ");
             push_opt(&mut line, killer.as_deref());
             push_stolen(&mut line, *stolen);
         }
         GameEvent::InhibKilled { killer, time } => {
             push_time(&mut line, *time);
-            line.push_str("InhibKilled destroyed by ");
+            line.push_str("inhibidor  ");
             push_opt(&mut line, killer.as_deref());
         }
         GameEvent::Ace { acing_team, time } => {
             push_time(&mut line, *time);
-            line.push_str("Ace by ");
+            line.push_str("ace  ");
             push_opt(&mut line, acing_team.as_deref());
         }
         GameEvent::GameEnd { result, time } => {
             push_time(&mut line, *time);
-            line.push_str("GameEnd ");
+            line.push_str("fin  ");
             push_opt(&mut line, result.as_deref());
         }
         GameEvent::Other { name, time } => {
             push_time(&mut line, *time);
-            match name {
-                Some(name) => line.push_str(name),
-                None => line.push_str("Unknown event"),
-            }
+            line.push_str(&pretty_other(name.as_deref()));
         }
     }
     line
 }
 
-/// Exposed `EventTime` verbatim (`?` when absent). f64 Display keeps value
-/// fidelity exactly like the respawn timers — no rounding, no recompute.
+fn pretty_other(name: Option<&str>) -> String {
+    let Some(name) = name else {
+        return "evento".to_owned();
+    };
+    let lower = name.to_ascii_lowercase();
+    if lower.contains("horde") {
+        "horda".to_owned()
+    } else if lower.contains("inhib") {
+        "inhibidor".to_owned()
+    } else {
+        name.to_owned()
+    }
+}
+
+/// Exposed `EventTime` as `mm:ss` (`?` when absent).
 fn push_time(line: &mut String, time: Option<f64>) {
-    line.push('@');
     match time {
-        Some(time) => line.push_str(&time.to_string()),
+        Some(time) => line.push_str(&format::clock(time)),
         None => line.push_str(UNKNOWN),
     }
-    line.push(' ');
+    line.push_str("  ");
 }
 
 fn push_opt(line: &mut String, value: Option<&str>) {
     line.push_str(value.unwrap_or(UNKNOWN));
 }
 
-/// Assister list suffix, only when participants were actually exposed.
+/// Assister suffix, only when participants were actually exposed.
 fn push_assisters(line: &mut String, assisters: &[String]) {
     if assisters.is_empty() {
         return;
     }
-    line.push_str(" (assists: ");
-    line.push_str(&assisters.join(", "));
-    line.push(')');
+    line.push_str("  +");
+    line.push_str(&assisters.join(" +"));
 }
 
-/// Stolen flag suffix — printed only on an explicit `true`; absence and
-/// `false` stay silent rather than inventing a negation.
+/// Stolen flag suffix — printed only on an explicit `true`.
 fn push_stolen(line: &mut String, stolen: Option<bool>) {
     if stolen == Some(true) {
-        line.push_str(" STOLEN");
+        line.push_str("  robado");
     }
 }

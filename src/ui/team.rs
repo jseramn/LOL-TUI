@@ -212,10 +212,11 @@ fn render_team(
     if area.is_empty() {
         return;
     }
-    let (title, color) = match team {
-        Team::Order => ("Team ORDER", Color::Cyan),
-        Team::Chaos => ("Team CHAOS", Color::Red),
+    let color = match team {
+        Team::Order => Color::Cyan,
+        Team::Chaos => Color::Red,
     };
+    let title = super::scoreboard::team_title(team, snapshot);
     frame.render_widget(
         Paragraph::new(Line::from(Span::styled(title, Style::default().fg(color)))),
         Rect { height: 1, ..area },

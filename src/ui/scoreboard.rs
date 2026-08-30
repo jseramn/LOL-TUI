@@ -5,28 +5,21 @@
 //! Objective counts summarize events already in the snapshot ticker — they
 //! do not invent timers or unexposed state.
 
+use super::format;
+use crate::glyphs::Glyph;
 use crate::model::snapshot::{GameEvent, Snapshot, Team};
 
-/// Single-row live headline for the header band.
+/// Single-row live headline: clock as `mm:ss`, no raw map/id noise.
 pub fn header_line(snapshot: &Snapshot) -> String {
     let mut line = String::from("LIVE");
     if let Some(game) = &snapshot.game {
+        if let Some(time) = game.game_time {
+            line.push_str("  ");
+            line.push_str(&format::clock(time));
+        }
         if let Some(mode) = &game.game_mode {
             line.push(' ');
             line.push_str(mode);
-        }
-        if let Some(time) = game.game_time {
-            line.push(' ');
-            line.push_str(&time.to_string());
-            line.push('s');
-        }
-        if let Some(map) = &game.map_name {
-            line.push(' ');
-            line.push_str(map);
-        }
-        if let Some(id) = game.game_id {
-            line.push_str(" id ");
-            line.push_str(&id.to_string());
         }
     }
 
@@ -65,6 +58,15 @@ pub fn team_kills(snapshot: &Snapshot, team: Team) -> String {
 }
 
 const UNKNOWN: &str = "?";
+
+/// Coloured column caption: `Team ORDER  23` / `Team CHAOS  20`.
+pub fn team_title(team: Team, snapshot: &Snapshot) -> String {
+    let kills = team_kills(snapshot, team);
+    match team {
+        Team::Order => format!("Team ORDER  {kills}"),
+        Team::Chaos => format!("{} Team CHAOS  {kills}", Glyph::Vertical.symbol()),
+    }
+}
 
 /// Compact objective readout from the event list (counts only).
 pub fn objectives_summary(snapshot: &Snapshot) -> String {

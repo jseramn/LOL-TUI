@@ -4,7 +4,7 @@
 
 use crate::model::snapshot::{Snapshot, Team};
 use crate::ui::format::{local_line, player_line};
-use crate::ui::scoreboard::header_line;
+use crate::ui::scoreboard::{header_line, team_title};
 use crate::ui::ticker;
 
 /// Multi-line text dump of one live snapshot.
@@ -12,8 +12,8 @@ pub fn dump_snapshot(snapshot: &Snapshot) -> String {
     let mut out = String::new();
     out.push_str(&header_line(snapshot));
     out.push('\n');
-    for (label, team) in [("Team ORDER", Team::Order), ("Team CHAOS", Team::Chaos)] {
-        out.push_str(label);
+    for team in [Team::Order, Team::Chaos] {
+        out.push_str(&team_title(team, snapshot));
         out.push('\n');
         let members: Vec<_> = snapshot
             .players

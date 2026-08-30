@@ -46,19 +46,18 @@ Enter a real match (custom game suffices) and wait for the first poll cycle
 (≤ 1 s at default cadence):
 
 - [ ] The view swaps to the live dashboard within about one second of game
-      start: scoreboard `LIVE CLASSIC …s Map11 | ORDER k - k CHAOS | DRG …`
+      start: scoreboard `LIVE  mm:ss  CLASSIC | ORDER k - k CHAOS | DRG …`
       headline, `Team ORDER` / `Team CHAOS` **side-by-side** columns with one
-      card per player (role, champion, level, KDA, CS, items, summoner spells,
+      card per player (role, champion, level, KDA, CS, short summoner spells,
       plus CS/level/KDA/inventory bars), and your own `LOCAL ...` strip at the
       end.
-- [ ] Dead players show their exposed respawn value verbatim, e.g.
-      `DEAD(respawn 12.5)`; players dead without an exposed timer show
-      `DEAD(respawn ?)` — never a ticking countdown (design hard rule).
+- [ ] Dead players show their exposed respawn value as whole seconds, e.g.
+      `DEAD 12s`; players dead without an exposed timer show `DEAD ?` —
+      never a ticking countdown (design hard rule).
 - [ ] Gold appears ONLY on your LOCAL strip (`Gold <value>`); no enemy or
       ally panel ever shows gold (ui spec R4).
-- [ ] The `EVENTS` section lists kills/objectives as they happen, each line
-      starting with the exposed event time verbatim, e.g.
-      `@512.18 DragonKill Chemtech slain by JungleKing STOLEN` (ui spec R5).
+- [ ] The `EVENTS` section lists kills/objectives as they happen, newest first,
+      with the exposed event time as `mm:ss` (ui spec R5).
 - [ ] The status line shows `state=in-game ok | updated HH:MM:SS UTC`.
 
 ## 4. Mid-game disconnect / reconnect (standby ↔ live swap)

@@ -9,7 +9,8 @@ Dashboard de terminal para una partida **en curso** de League of Legends (Live C
 - **Windows Terminal** recomendado (también funciona en conhost clásico).
 
 > El puerto `https://127.0.0.1:2999` solo responde **durante la partida**.  
-> El oro solo aparece en la franja **LOCAL** (tu jugador); el resto de paneles no muestran oro.
+> El oro solo aparece en la franja **LOCAL** (tu jugador); el resto de paneles no muestran oro.  
+> Reloj `mm:ss`, números enteros, cartas compactas (rol + campeón + KDA + hechizos cortos) y eventos en español, los más recientes arriba.
 
 ## Clonar y usar esta rama
 

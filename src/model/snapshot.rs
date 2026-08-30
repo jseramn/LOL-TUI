@@ -171,6 +171,28 @@ pub enum GameEvent {
     },
 }
 
+impl GameEvent {
+    /// Exposed `EventTime` as carried — never recomputed.
+    pub fn time(&self) -> Option<f64> {
+        match self {
+            GameEvent::GameStart { time }
+            | GameEvent::MinionsSpawning { time }
+            | GameEvent::FirstBrick { time }
+            | GameEvent::FirstBlood { time, .. }
+            | GameEvent::ChampionKill { time, .. }
+            | GameEvent::Multikill { time, .. }
+            | GameEvent::TurretKilled { time, .. }
+            | GameEvent::DragonKill { time, .. }
+            | GameEvent::HeraldKill { time, .. }
+            | GameEvent::BaronKill { time, .. }
+            | GameEvent::InhibKilled { time, .. }
+            | GameEvent::Ace { time, .. }
+            | GameEvent::GameEnd { time, .. }
+            | GameEvent::Other { time, .. } => *time,
+        }
+    }
+}
+
 impl From<&RawEvent> for GameEvent {
     fn from(raw: &RawEvent) -> GameEvent {
         let name = raw.event_name.as_deref();
@@ -290,10 +312,15 @@ impl Snapshot {
                 .iter()
                 .map(PlayerSnapshot::from_player)
                 .collect(),
-            local: data
-                .active_player
-                .as_ref()
-                .map(LocalPlayerSnapshot::from_local),
+            local: data.active_player.as_ref().map(|active| {
+                let mut local = LocalPlayerSnapshot::from_local(active);
+                fill_local_champion(
+                    &mut local,
+                    active,
+                    data.all_players.as_deref().unwrap_or(&[]),
+                );
+                local
+            }),
             game: data.game_data.as_ref().map(|g| GameInfo {
                 game_mode: g.game_mode.clone(),
                 game_time: g.game_time,
@@ -366,4 +393,61 @@ impl LocalPlayerSnapshot {
             }),
         }
     }
+}
+
+fn champion_blank(value: &Option<String>) -> bool {
+    value.as_deref().map(str::trim).unwrap_or("").is_empty()
+}
+
+/// Live `activePlayer.championName` is often empty; copy the roster champion
+/// when summoner / riot id match. No match → leave absence as-is.
+fn fill_local_champion(
+    local: &mut LocalPlayerSnapshot,
+    active: &ActivePlayer,
+    roster: &[PlayerData],
+) {
+    if !champion_blank(&local.champion) {
+        return;
+    }
+    for player in roster {
+        if !player_matches_active(player, active) {
+            continue;
+        }
+        if let Some(champ) = player
+            .champion_name
+            .as_deref()
+            .map(str::trim)
+            .filter(|c| !c.is_empty())
+        {
+            local.champion = Some(champ.to_owned());
+            return;
+        }
+    }
+}
+
+fn player_matches_active(player: &PlayerData, active: &ActivePlayer) -> bool {
+    let mut aliases: Vec<&str> = Vec::new();
+    if let Some(name) = active.summoner_name.as_deref() {
+        aliases.push(name);
+    }
+    if let Some(name) = active.riot_id_game_name.as_deref() {
+        aliases.push(name);
+    }
+    if let Some(riot_id) = active.riot_id.as_deref() {
+        aliases.push(riot_id);
+        if let Some((name, _)) = riot_id.split_once('#') {
+            aliases.push(name);
+        }
+    }
+    let tagged = player
+        .riot_id_game_name
+        .as_deref()
+        .zip(player.riot_id_tag_line.as_deref())
+        .map(|(name, tag)| format!("{name}#{tag}"));
+    aliases.iter().any(|alias| {
+        let eq = |other: &str| other.eq_ignore_ascii_case(alias);
+        player.summoner_name.as_deref().is_some_and(eq)
+            || player.riot_id_game_name.as_deref().is_some_and(eq)
+            || tagged.as_deref().is_some_and(eq)
+    })
 }
