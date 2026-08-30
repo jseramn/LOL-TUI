@@ -21,7 +21,20 @@ git checkout cursor/live-visual-terminal-7f59
 
 ## En vivo (tu PC)
 
-Este repo en Windows usa el toolchain **`x86_64-pc-windows-gnu`**. `cargo run` en paralelo agota el archivo de paginación (`os error 1455` / `memory allocation failed`) y necesita `dlltool.exe` de w64devkit. Hay que **un solo job de rustc** y el PATH de E:.
+Este repo en Windows usa el toolchain **`x86_64-pc-windows-gnu`**. `cargo run` en paralelo agota el archivo de paginación (`os error 1455` / `memory allocation failed`) y necesita `dlltool.exe` de w64devkit.
+
+### Opción A — `.exe` ya compilado (recomendado si rustc se queda sin RAM)
+
+En GitHub: **Actions** de esta rama → última ejecución verde → artifact `tui-lol-windows-gnu` → `tui-lol.exe`. Ponlo en la carpeta del repo (o junto al `.exe`) y, **ya en partida**:
+
+```powershell
+cd E:\dev\TUI-LOL\LOL-TUI
+.\tui-lol.exe
+```
+
+Demo sin LoL: `.\tui-lol.exe replay tests\fixtures\allgamedata\full.json`
+
+### Opción B — compilar en el PC (un solo job)
 
 Copia esto **tal cual** (también lo hace `scripts/run-live.ps1`):
 
