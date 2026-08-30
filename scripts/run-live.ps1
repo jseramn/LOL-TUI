@@ -29,6 +29,7 @@ function Enable-WindowsGnuToolchain {
         $env:RUSTFLAGS = "-Clink-self-contained=yes"
     }
     $env:CARGO_BUILD_JOBS = "1"
+    $env:CARGO_INCREMENTAL = "0"
 }
 
 function Test-LiveClientPort {

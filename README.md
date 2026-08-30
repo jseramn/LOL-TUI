@@ -50,7 +50,7 @@ powershell -ExecutionPolicy Bypass -File scripts/run-live.ps1 -Replay
 
 Salir: **`q`** o **`Esc`**.
 
-`.cargo/config.toml` fija `jobs = 1` para que un `cargo run` suelto no dispare 8 rustc a la vez. Si aún falla `dlltool.exe: program not found`, falta `E:\w64devkit\w64devkit\bin` en el PATH (bloque de arriba).
+`.cargo/config.toml` fija `jobs = 1` y un `dev` sin debuginfo/incremental para no hinchar el pagefile. Si aún falla `dlltool.exe: program not found`, falta `E:\w64devkit\w64devkit\bin` en el PATH (bloque de arriba).
 
 ### Comprobar identidad / reloj de partida
 
