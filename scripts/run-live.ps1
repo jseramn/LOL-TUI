@@ -1,11 +1,35 @@
 # One-shot live TUI launcher (Windows, repo root).
 #
-# If the Live Client port answers, starts `cargo run` (127.0.0.1:2999).
-# Otherwise prints that you must be in-game and how to run the offline replay.
+# Applies the windows-gnu env this machine needs (w64devkit dlltool, rust on E:),
+# then `cargo run -j 1` so rustc does not OOM the pagefile.
 #
 #   powershell -ExecutionPolicy Bypass -File scripts/run-live.ps1
+#   powershell -ExecutionPolicy Bypass -File scripts/run-live.ps1 -Replay
+
+param(
+    [switch]$Replay
+)
 
 $ErrorActionPreference = "Stop"
+
+function Enable-WindowsGnuToolchain {
+    if (Test-Path "E:\rust\cargo") { $env:CARGO_HOME = "E:\rust\cargo" }
+    if (Test-Path "E:\rust\rustup") { $env:RUSTUP_HOME = "E:\rust\rustup" }
+    $prefix = @()
+    if (Test-Path "E:\w64devkit\w64devkit\bin") {
+        $prefix += "E:\w64devkit\w64devkit\bin"
+    }
+    $dlltoolHome = "E:\rust\rustup\toolchains\stable-x86_64-pc-windows-gnu\lib\rustlib\x86_64-pc-windows-gnu\bin\self-contained"
+    if (Test-Path $dlltoolHome) { $prefix += $dlltoolHome }
+    if (Test-Path "E:\rust\cargo\bin") { $prefix += "E:\rust\cargo\bin" }
+    if ($prefix.Count -gt 0) {
+        $env:Path = ($prefix -join ";") + ";" + $env:Path
+    }
+    if (-not $env:RUSTFLAGS) {
+        $env:RUSTFLAGS = "-Clink-self-contained=yes"
+    }
+    $env:CARGO_BUILD_JOBS = "1"
+}
 
 function Test-LiveClientPort {
     $client = New-Object System.Net.Sockets.TcpClient
@@ -21,21 +45,20 @@ function Test-LiveClientPort {
 
 $repoRoot = Split-Path $PSScriptRoot -Parent
 Set-Location $repoRoot
+Enable-WindowsGnuToolchain
+
+if ($Replay) {
+    cargo run -j 1 -- replay tests/fixtures/allgamedata/full.json
+    exit $LASTEXITCODE
+}
 
 if (Test-LiveClientPort) {
-    Write-Host "Live Client detected on 127.0.0.1:2999 — starting TUI (q or Esc to quit)."
-    cargo run
+    Write-Host "Live Client on 127.0.0.1:2999 — TUI with cargo -j 1 (q / Esc to quit)."
+    cargo run -j 1
     exit $LASTEXITCODE
 }
 
 Write-Host "Live Client is not reachable on 127.0.0.1:2999."
-Write-Host ""
-Write-Host "Start a League match first (loading screen or in-game). The port is closed in lobby and champion select."
-Write-Host ""
-Write-Host "Offline demo (no game required):"
-Write-Host "  cargo run -- replay tests/fixtures/allgamedata/full.json"
-Write-Host ""
-Write-Host "Preview the fixed layout without a game:"
-Write-Host "  cargo run --example dump_frame"
-Write-Host "  type docs\frames\live-80x24.txt"
+Write-Host "Enter a match first (not lobby). To compile without a game:"
+Write-Host "  powershell -ExecutionPolicy Bypass -File scripts/run-live.ps1 -Replay"
 exit 1

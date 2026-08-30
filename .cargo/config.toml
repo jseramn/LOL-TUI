@@ -1,0 +1,4 @@
+# Parallel rustc on Windows gnu OOMs (paging file / os error 1455)
+# and can miss dlltool.exe. One codegen job is the supported local build.
+[build]
+jobs = 1

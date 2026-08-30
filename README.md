@@ -21,19 +21,36 @@ git checkout cursor/live-visual-terminal-7f59
 
 ## En vivo (tu PC)
 
-Con la partida ya en curso, desde la raíz del repo:
+Este repo en Windows usa el toolchain **`x86_64-pc-windows-gnu`**. `cargo run` en paralelo agota el archivo de paginación (`os error 1455` / `memory allocation failed`) y necesita `dlltool.exe` de w64devkit. Hay que **un solo job de rustc** y el PATH de E:.
+
+Copia esto **tal cual** (también lo hace `scripts/run-live.ps1`):
 
 ```powershell
-cargo run
+$env:CARGO_HOME='E:\rust\cargo'
+$env:RUSTUP_HOME='E:\rust\rustup'
+$env:Path='E:\w64devkit\w64devkit\bin;E:\rust\rustup\toolchains\stable-x86_64-pc-windows-gnu\lib\rustlib\x86_64-pc-windows-gnu\bin\self-contained;E:\rust\cargo\bin;'+$env:Path
+$env:RUSTFLAGS='-Clink-self-contained=yes'
+cd E:\dev\TUI-LOL\LOL-TUI
+git checkout cursor/live-visual-terminal-7f59
+git pull
+cargo run -j 1
 ```
 
-Atajo en Windows (comprueba el puerto `2999` y lanza el TUI, o indica cómo usar el replay offline):
+O un solo archivo:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/run-live.ps1
 ```
 
+Demo sin partida (misma env, sin LoL):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run-live.ps1 -Replay
+```
+
 Salir: **`q`** o **`Esc`**.
+
+`.cargo/config.toml` fija `jobs = 1` para que un `cargo run` suelto no dispare 8 rustc a la vez. Si aún falla `dlltool.exe: program not found`, falta `E:\w64devkit\w64devkit\bin` en el PATH (bloque de arriba).
 
 ### Comprobar identidad / reloj de partida
 
@@ -45,7 +62,7 @@ python scripts/live_bridge.py --id-only
 ## Demo sin partida (offline)
 
 ```powershell
-cargo run -- replay tests/fixtures/allgamedata/full.json
+cargo run -j 1 -- replay tests/fixtures/allgamedata/full.json
 ```
 
 Un snapshot en texto (sin TUI):
