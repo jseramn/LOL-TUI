@@ -21,7 +21,8 @@ use tui_lol::ui::local_strip::gauge_ratio;
 /// Wide enough that both gauge tracks carry enough cells for ±1-cell
 /// proportional assertions.
 const WIDTH: u16 = 120;
-const HEIGHT: u16 = 24;
+/// Tall enough for the four-row local band (text + HP + Power + gold trend).
+const HEIGHT: u16 = 28;
 
 /// A player with every field absent except the team.
 fn ps(team: Option<Team>) -> PlayerSnapshot {

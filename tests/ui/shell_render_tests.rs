@@ -176,6 +176,49 @@ fn canonical_region_order_at_80x24_with_notice_filling_final_row() {
     );
 }
 
+/// live-dashboard-ui R3: canonical 80×24 must show all five players per team
+/// (identity + viz rows) — supports appear as SUP + champion in compact columns.
+#[test]
+fn canonical_80x24_renders_all_five_players_per_team() {
+    let app = live_app_with_snapshot("full");
+    let buffer = draw_at(&app, 80, 24);
+    let events_y = find_row(&buffer, "EVENTS").unwrap_or(buffer.area.height);
+    let layout = tui_lol::ui::select_layout(Rect::new(0, 0, 80, 24));
+    let mid = buffer.area.width / 2;
+
+    assert_eq!(
+        layout.areas.body.height, 11,
+        "canonical viewport pins body to eleven rows for five 2-row cards"
+    );
+
+    for (label, champ) in [("SUP", "Lulu"), ("SUP", "Thresh")] {
+        let rows = (0..events_y)
+            .filter(|&y| {
+                let left = row_text(&buffer, y);
+                let right = (mid..buffer.area.width)
+                    .map(|x| buffer[(x, y)].symbol())
+                    .collect::<String>();
+                (left.contains(label) && left.contains(champ))
+                    || (right.contains(label) && right.contains(champ))
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            rows.len(),
+            1,
+            "support {label} {champ} must appear once in team columns at 80x24: {rows:?}"
+        );
+        assert!(rows[0] < events_y, "support row must sit above EVENTS");
+    }
+
+    let viz_rows = (layout.areas.body.y..layout.areas.body.bottom())
+        .filter(|&y| row_text(&buffer, y).starts_with("Lv"))
+        .count();
+    assert_eq!(
+        viz_rows, 5,
+        "five paired visualization rows (one per roster slot) at 80x24"
+    );
+}
+
 /// Canonical 80×24 frame dumps must keep roster identity readable inside
 /// each ~40-cell team column (no mid-field clip from the full formatter).
 #[test]
@@ -192,7 +235,7 @@ fn canonical_80x24_identity_lines_fit_team_columns() {
             .to_owned()
     };
 
-    for y in 2..10 {
+    for y in 2..12 {
         let left = segment(y, 0, mid);
         let right = segment(y, mid, buffer.area.width);
         if left.starts_with("Lv") || right.starts_with("Lv") {

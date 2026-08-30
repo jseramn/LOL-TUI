@@ -8,10 +8,11 @@ MID Ahri Lv12 6/1/7 CS195.5             MID Syndra Lv13 8/2/6 CS230
 Lv███░░ K███  D█    A██   CS███   ▓▓▓▓▓▓Lv████░ K████ D█    A█    CS████  ▓▓▓▓▓▓
 ADC Jinx Lv11 7/2/3 CS244               ADC Kai'Sa Lv11 4/5/4 CS210             
 Lv███░░ K████ D█    A█    CS█████ ▓▓▓▓▓▓Lv███░░ K██   D███  A█    CS████  ▓▓▓▓▓▓
+SUP Lulu Lv10 1/4/18 CS48               SUP Thresh Lv9 0/6/14 CS48              
+Lv███░░ K█    D███  A████ CS      ▓▓▓▓▓▓Lv██░░░ K     D████ A███  CS      ▓▓▓▓▓▓
 LOCAL Ahri Lv12 Gold 1234.56 | HP 1875/2015 Power 940/1120 MS 355 | Q4 W2 E3 R1 
 LOCAL HP  93% █████████████████████████████████████████████████████████████░░░░░
 LOCAL Power  84% ████████████████████████████████████████████████████░░░░░░░░░░░
-GOLD warming up (1/120)                                                         
 EVENTS                                                                          
 @0.046 GameStart                                                                
 @15.023 MinionsSpawning                                                         
@@ -20,5 +21,4 @@ EVENTS
 @182.44 FirstBlood recipient Order                                              
 @184.9 Multikill streak 2                                                       
 @703.42 TurretKilled ADCarryMain destroyed Turret_T1_C_03 (assists: MidMage, Sup
-@921.7 HeraldKill slain by TopGap                                               
-This product is not endorsed by Riot Games. | state=in-game ok | updated 21:36:5
+This product is not endorsed by Riot Games. | state=in-game ok | updated 21:42:0

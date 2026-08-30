@@ -96,8 +96,13 @@ fn tier_boundaries_follow_the_documented_height_table() {
     assert_eq!(at(20), visible(true, true, true, true, false), "20: +K/D/A");
     assert_eq!(at(23), visible(true, true, true, true, false), "23: +K/D/A");
 
-    assert_eq!(at(24), visible(true, true, true, true, true), "≥24: all");
-    assert_eq!(at(60), visible(true, true, true, true, true), "≥24: all");
+    assert_eq!(
+        at(24),
+        visible(true, true, true, true, false),
+        "24: team charts; sparkline clips on the pinned three-row local band"
+    );
+    assert_eq!(at(28), visible(true, true, true, true, true), "≥28: all");
+    assert_eq!(at(60), visible(true, true, true, true, true), "≥28: all");
 }
 
 /// viz:R9/S1 — a viewport narrower than 40 columns hides EVERY chart
@@ -108,7 +113,7 @@ fn widths_below_40_hide_every_chart_family() {
     let narrow = select_layout(Rect::new(0, 0, 39, 60)).visible;
     assert_eq!(narrow, visible(false, false, false, false, false));
 
-    let boundary_wide = select_layout(Rect::new(0, 0, 40, 24)).visible;
+    let boundary_wide = select_layout(Rect::new(0, 0, 40, 28)).visible;
     assert_eq!(boundary_wide, visible(true, true, true, true, true));
 
     // The width override cannot resurrect charts the height gate hid.
@@ -373,7 +378,7 @@ fn widths_below_the_chart_floor_render_no_visualization_rows() {
 /// trend row must be blank even though the band still has its fourth row;
 /// at 24 rows the sparkline is back.
 #[test]
-fn sparkline_hides_at_23_rows_and_returns_at_24() {
+fn sparkline_hides_at_23_rows_and_returns_when_local_band_has_room() {
     let app = live_app_with_snapshot("full");
 
     let short = draw_at(&app, 80, 23);
@@ -382,10 +387,16 @@ fn sparkline_hides_at_23_rows_and_returns_at_24() {
         "23 rows hide the sparkline tier; no warm-up text may render"
     );
 
-    let full = draw_at(&app, 80, 24);
+    let canonical = draw_at(&app, 80, 24);
+    assert!(
+        !any_row_contains(&canonical, "GOLD warming up"),
+        "24 rows pin the local band to three rows (HP + Power only); sparkline clips"
+    );
+
+    let full = draw_at(&app, 80, 28);
     assert!(
         any_row_contains(&full, "GOLD warming up"),
-        "24 rows restore the sparkline tier; warm-up text must render"
+        "28 rows restore the four-row local band; warm-up text must render"
     );
 }
 
