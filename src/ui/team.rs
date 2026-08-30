@@ -53,7 +53,7 @@
 //!
 //! Implemented in Phase 4 (tasks 4.2–4.5).
 
-use super::format::player_line;
+use super::format;
 use super::{ChartSet, TeamColumns};
 use crate::glyphs::Glyph;
 use crate::history::chart_u64;
@@ -237,7 +237,8 @@ fn render_team(
             height: 1,
             ..area
         };
-        let mut identity = Paragraph::new(player_line(player));
+        let text = format::player_line_for_width(player, area.width);
+        let mut identity = Paragraph::new(text);
         identity = identity.style(Style::default().fg(if player.is_dead == Some(true) {
             Color::DarkGray
         } else {

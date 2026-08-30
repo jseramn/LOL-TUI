@@ -176,6 +176,53 @@ fn canonical_region_order_at_80x24_with_notice_filling_final_row() {
     );
 }
 
+/// Canonical 80×24 frame dumps must keep roster identity readable inside
+/// each ~40-cell team column (no mid-field clip from the full formatter).
+#[test]
+fn canonical_80x24_identity_lines_fit_team_columns() {
+    let app = live_app_with_snapshot("full");
+    let buffer = draw_at(&app, 80, 24);
+    let mid = buffer.area.width / 2;
+
+    let segment = |y: u16, start: u16, end: u16| -> String {
+        (start..end)
+            .map(|x| buffer[(x, y)].symbol())
+            .collect::<String>()
+            .trim_end()
+            .to_owned()
+    };
+
+    for y in 2..10 {
+        let left = segment(y, 0, mid);
+        let right = segment(y, mid, buffer.area.width);
+        if left.starts_with("Lv") || right.starts_with("Lv") {
+            continue;
+        }
+        if left.contains("Team ") || right.contains("Team ") {
+            continue;
+        }
+        if left.is_empty() && right.is_empty() {
+            continue;
+        }
+        assert!(
+            left.chars().count() <= usize::from(mid),
+            "ORDER identity must fit its column on row {y}: {left:?}"
+        );
+        assert!(
+            right.chars().count() <= usize::from(buffer.area.width - mid),
+            "CHAOS identity must fit its column on row {y}: {right:?}"
+        );
+        assert!(
+            left.contains("Lv") && left.contains("CS"),
+            "compact ORDER identity on row {y}: {left:?}"
+        );
+        assert!(
+            right.contains("Lv") && right.contains("CS"),
+            "compact CHAOS identity on row {y}: {right:?}"
+        );
+    }
+}
+
 /// viz spec R2 + R9/S2 discipline: whatever the height — from a 1-row
 /// sliver to the full layout — the notice-bearing status row is the LAST
 /// row of the frame. Nothing else may occupy it.

@@ -1,0 +1,24 @@
+LIVE CLASSIC 754.19s Map11 | ORDER 23 - 20 CHAOS | DRG 1 HERALD 1 TWR 1         
+Team ORDER                              Team CHAOS                              
+TOP Aatrox Lv13 5/2/4 CS212             TOP Darius Lv12 3/4/2 CS198             
+Lv████░ K███  D█    A█    CS████  ▓▓▓▓▓▓Lv███░░ K██   D███  A     CS████  ▓▓▓▓▓▓
+JGL Lee Sin Lv12 4/3/9 CS168 DEAD12.5   JGL Graves Lv12 5/3/5 CS176 DEAD34      
+Lv███░░ K██   D██   A██   CS███   ▓▓▓▓▓▓Lv███░░ K███  D██   A█    CS███   ▓▓▓▓▓▓
+MID Ahri Lv12 6/1/7 CS195.5             MID Syndra Lv13 8/2/6 CS230             
+Lv███░░ K███  D█    A██   CS███   ▓▓▓▓▓▓Lv████░ K████ D█    A█    CS████  ▓▓▓▓▓▓
+ADC Jinx Lv11 7/2/3 CS244               ADC Kai'Sa Lv11 4/5/4 CS210             
+Lv███░░ K████ D█    A█    CS█████ ▓▓▓▓▓▓Lv███░░ K██   D███  A█    CS████  ▓▓▓▓▓▓
+LOCAL Ahri Lv12 Gold 1234.56 | HP 1875/2015 Power 940/1120 MS 355 | Q4 W2 E3 R1 
+LOCAL HP  93% █████████████████████████████████████████████████████████████░░░░░
+LOCAL Power  84% ████████████████████████████████████████████████████░░░░░░░░░░░
+GOLD warming up (1/120)                                                         
+EVENTS                                                                          
+@0.046 GameStart                                                                
+@15.023 MinionsSpawning                                                         
+@512.18 DragonKill Chemtech slain by JungleKing STOLEN                          
+@182.44 ChampionKill MidMage killed SyndraGod (assists: JungleKing)             
+@182.44 FirstBlood recipient Order                                              
+@184.9 Multikill streak 2                                                       
+@703.42 TurretKilled ADCarryMain destroyed Turret_T1_C_03 (assists: MidMage, Sup
+@921.7 HeraldKill slain by TopGap                                               
+This product is not endorsed by Riot Games. | state=in-game ok | updated 21:36:5

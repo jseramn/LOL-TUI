@@ -101,6 +101,59 @@ fn push_rank(line: &mut String, letter: char, rank: Option<u32>) {
     }
 }
 
+/// Column width at or above which roster identity lines keep the full
+/// formatter (summoner, spells, items). Narrower team halves (80×24 ⇒
+/// ~40 cells each) use [`player_line_compact`] so text is not clipped
+/// mid-field.
+pub const FULL_PLAYER_LINE_MIN_WIDTH: u16 = 52;
+
+/// Picks the full or compact roster identity formatter for a team column.
+pub fn player_line_for_width(p: &PlayerSnapshot, column_width: u16) -> String {
+    if column_width >= FULL_PLAYER_LINE_MIN_WIDTH {
+        player_line(p)
+    } else {
+        player_line_compact(p)
+    }
+}
+
+/// Compact roster identity for side-by-side columns (~40 cells): role,
+/// champion, level, K/D/A, CS, and death marker — no summoner name,
+/// spells, or item list (those stay on the visualization row / dump).
+pub fn player_line_compact(p: &PlayerSnapshot) -> String {
+    let mut line = String::with_capacity(48);
+    if let Some(role) = compact_role(p.position.as_deref()) {
+        line.push_str(role);
+    }
+    push_part(&mut line, p.champion.as_deref());
+
+    line.push_str(" Lv");
+    line.push_str(p.level.map(|l| l.to_string()).as_deref().unwrap_or(UNKNOWN));
+
+    line.push(' ');
+    line.push_str(&num_marker(p.kills));
+    line.push('/');
+    line.push_str(&num_marker(p.deaths));
+    line.push('/');
+    line.push_str(&num_marker(p.assists));
+
+    line.push_str(" CS");
+    line.push_str(
+        p.creep_score
+            .map(|cs| cs.to_string())
+            .as_deref()
+            .unwrap_or(UNKNOWN),
+    );
+
+    if p.is_dead == Some(true) {
+        line.push_str(" DEAD");
+        match p.respawn_timer {
+            Some(timer) => line.push_str(&timer.to_string()),
+            None => line.push_str(UNKNOWN),
+        }
+    }
+    line
+}
+
 /// Formats one player panel line:
 /// `[{role} ]{name} {champion} Lv{level} {k}/{d}/{a} CS{cs} {spell1}+{spell2}[ DEAD(respawn {t}|?)] | Items: …`
 ///

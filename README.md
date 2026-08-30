@@ -27,6 +27,12 @@ Con la partida ya en curso, desde la raíz del repo:
 cargo run
 ```
 
+Atajo en Windows (comprueba el puerto `2999` y lanza el TUI, o indica cómo usar el replay offline):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/run-live.ps1
+```
+
 Salir: **`q`** o **`Esc`**.
 
 ### Comprobar identidad / reloj de partida
@@ -47,6 +53,19 @@ Un snapshot en texto (sin TUI):
 ```powershell
 cargo run -- dump tests/fixtures/allgamedata/full.json
 ```
+
+### Capturas de layout (revisión sin LoL)
+
+El ejemplo `dump_frame` renderiza el dashboard live desde `tests/fixtures/allgamedata/full.json` con ratatui `TestBackend` y escribe UTF-8 en `docs/frames/`:
+
+```powershell
+cargo run --example dump_frame
+```
+
+Archivos generados (80×24 canónico y 120×32 ancho):
+
+- [`docs/frames/live-80x24.txt`](docs/frames/live-80x24.txt)
+- [`docs/frames/live-120x32.txt`](docs/frames/live-120x32.txt)
 
 ## Ayuda CLI
 
