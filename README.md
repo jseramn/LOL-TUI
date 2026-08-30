@@ -7,10 +7,30 @@ Dashboard de terminal para una partida **en curso** de League of Legends (Live C
 PowerShell, **ya en partida** (no lobby). Desde cualquier carpeta:
 
 ```powershell
+cd E:\dev\TUI-LOL\LOL-TUI; git checkout cursor/live-visual-terminal-7f59; git pull; powershell -ExecutionPolicy Bypass -File scripts\run-live.ps1
+```
+
+Salir: **`q`** o **`Esc`**. Sin LoL: añade `-Replay` al archivo (`scripts\run-live.ps1 -Replay`).
+
+Próximas veces (después de ese `git pull`):
+
+```powershell
 powershell -ExecutionPolicy Bypass -File E:\dev\TUI-LOL\LOL-TUI\scripts\run-live.ps1 -Pull
 ```
 
-Salir: **`q`** o **`Esc`**. Sin LoL: añade `-Replay` al final.
+### Identidad de la partida
+
+```powershell
+powershell -ExecutionPolicy Bypass -File E:\dev\TUI-LOL\LOL-TUI\scripts\live-id.ps1
+```
+
+### Túnel (solo si un agente cloud debe leer tu partida; no hace falta en local)
+
+```powershell
+powershell -ExecutionPolicy Bypass -File E:\dev\TUI-LOL\LOL-TUI\scripts\live-id.ps1 -Tunnel
+```
+
+Pega al agente la línea `TUI_LOL_LIVE_URL=https://....trycloudflare.com`. **Nunca** expongas el LCU.
 
 ## Requisitos
 
