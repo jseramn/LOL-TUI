@@ -2,6 +2,16 @@
 
 Dashboard de terminal para una partida **en curso** de League of Legends (Live Client Data API).
 
+## Un solo comando (ubicar + actualizar + arrancar)
+
+PowerShell, **ya en partida** (no lobby). Desde cualquier carpeta:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File E:\dev\TUI-LOL\LOL-TUI\scripts\run-live.ps1 -Pull
+```
+
+Salir: **`q`** o **`Esc`**. Sin LoL: añade `-Replay` al final.
+
 ## Requisitos
 
 - **League of Legends** con una partida **ya cargada o en juego** (no lobby / selección de campeón).
@@ -53,7 +63,7 @@ cargo run -j 1
 O un solo archivo:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/run-live.ps1
+powershell -ExecutionPolicy Bypass -File scripts/run-live.ps1 -Pull
 ```
 
 Demo sin partida (misma env, sin LoL):

@@ -1,13 +1,18 @@
-# One-shot live TUI launcher (Windows, repo root).
+# One-shot live TUI launcher (Windows). Locates the repo from this script
+# path, optionally git-pulls, applies the windows-gnu env, then
+# `cargo run -j 1` so rustc does not OOM the pagefile.
 #
-# Applies the windows-gnu env this machine needs (w64devkit dlltool, rust on E:),
-# then `cargo run -j 1` so rustc does not OOM the pagefile.
+# Locate + update + start (from ANY directory):
+#   powershell -ExecutionPolicy Bypass -File E:\dev\TUI-LOL\LOL-TUI\scripts\run-live.ps1 -Pull
 #
+# Already in the repo:
+#   powershell -ExecutionPolicy Bypass -File scripts/run-live.ps1 -Pull
 #   powershell -ExecutionPolicy Bypass -File scripts/run-live.ps1
 #   powershell -ExecutionPolicy Bypass -File scripts/run-live.ps1 -Replay
 
 param(
-    [switch]$Replay
+    [switch]$Replay,
+    [switch]$Pull
 )
 
 $ErrorActionPreference = "Stop"
@@ -47,6 +52,14 @@ function Test-LiveClientPort {
 $repoRoot = Split-Path $PSScriptRoot -Parent
 Set-Location $repoRoot
 Enable-WindowsGnuToolchain
+
+if ($Pull) {
+    Write-Host "repo $repoRoot — checkout + pull cursor/live-visual-terminal-7f59"
+    git checkout cursor/live-visual-terminal-7f59
+    if ($LASTEXITCODE -ne 0) { throw "git checkout failed" }
+    git pull origin cursor/live-visual-terminal-7f59
+    if ($LASTEXITCODE -ne 0) { throw "git pull failed" }
+}
 
 if ($Replay) {
     cargo run -j 1 -- replay tests/fixtures/allgamedata/full.json
