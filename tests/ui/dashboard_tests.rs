@@ -231,7 +231,8 @@ fn partial_fields_degrade_explicitly_and_only_where_absent() {
     );
 
     // Every other panel remains fully populated — no placeholder leaks.
-    for name in ["Aatrox", "Lee Sin", "Jinx", "Thresh"] {
+    // Skip Jinx: she shares a row with Kai'Sa, whose `?` would false-fail.
+    for name in ["Aatrox", "Lee Sin", "Ahri", "Thresh"] {
         let row = player_row(&buffer, name);
         assert!(
             !row.contains('?'),

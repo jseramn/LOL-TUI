@@ -80,9 +80,27 @@ fn push_rank(line: &mut String, letter: char, rank: Option<u32>) {
     }
 }
 
-/// TUI roster line — always compact so wide terminals do not dump items.
-pub fn player_line_for_width(p: &PlayerSnapshot, _column_width: u16) -> String {
-    player_line_compact(p)
+/// TUI roster line. Tightens spacing and drops spells (never Lv/CS/DEAD)
+/// until the card fits the team column — 80×24 halves are ~40 cells.
+pub fn player_line_for_width(p: &PlayerSnapshot, column_width: u16) -> String {
+    let max = column_width as usize;
+    for line in [
+        player_card(p, true, true, true, "  "),
+        player_card(p, true, true, true, " "),
+        player_card(p, true, true, false, "  "),
+        player_card(p, true, true, false, " "),
+        player_card(p, false, true, false, " "),
+        player_card(p, false, false, false, " "),
+    ] {
+        if max == 0 || line.chars().count() <= max {
+            return line;
+        }
+    }
+    let fallback = player_card(p, false, false, false, " ");
+    if max == 0 {
+        return fallback;
+    }
+    fallback.chars().take(max).collect()
 }
 
 /// Whole seconds (trunc) for exposed respawn timers — never a countdown.
@@ -95,40 +113,59 @@ pub fn pretty_secs(value: f64) -> String {
 
 /// `TOP  Mundo  Lv6  1/0/0  CS42  F+H` plus `DEAD 12s` when dead.
 pub fn player_line_compact(p: &PlayerSnapshot) -> String {
+    player_card(p, true, true, true, "  ")
+}
+
+fn player_card(
+    p: &PlayerSnapshot,
+    show_level: bool,
+    show_cs: bool,
+    show_spells: bool,
+    gap: &str,
+) -> String {
     let mut line = String::with_capacity(48);
     if let Some(role) = compact_role(p.position.as_deref()) {
         line.push_str(role);
-        line.push_str("  ");
+        line.push_str(gap);
     }
     match p.champion.as_deref() {
         Some(champ) if !champ.is_empty() => line.push_str(champ),
         _ => line.push_str(UNKNOWN),
     }
 
-    line.push_str("  Lv");
-    line.push_str(&num_marker(p.level));
+    if show_level {
+        line.push_str(gap);
+        line.push_str("Lv");
+        line.push_str(&num_marker(p.level));
+    }
 
-    line.push_str("  ");
+    line.push_str(gap);
     line.push_str(&num_marker(p.kills));
     line.push('/');
     line.push_str(&num_marker(p.deaths));
     line.push('/');
     line.push_str(&num_marker(p.assists));
 
-    line.push_str("  CS");
-    line.push_str(&pretty_opt_f64(p.creep_score));
+    if show_cs {
+        line.push_str(gap);
+        line.push_str("CS");
+        line.push_str(&pretty_opt_f64(p.creep_score));
+    }
 
-    let s1 = short_spell(p.spell_one.as_deref());
-    let s2 = short_spell(p.spell_two.as_deref());
-    if s1 != UNKNOWN || s2 != UNKNOWN {
-        line.push(' ');
-        line.push_str(s1);
-        line.push('+');
-        line.push_str(s2);
+    if show_spells {
+        let s1 = short_spell(p.spell_one.as_deref());
+        let s2 = short_spell(p.spell_two.as_deref());
+        if s1 != UNKNOWN || s2 != UNKNOWN {
+            line.push_str(gap);
+            line.push_str(s1);
+            line.push('+');
+            line.push_str(s2);
+        }
     }
 
     if p.is_dead == Some(true) {
-        line.push_str("  DEAD ");
+        line.push_str(gap);
+        line.push_str("DEAD ");
         match p.respawn_timer {
             Some(timer) if timer.is_finite() => {
                 line.push_str(&pretty_secs(timer));

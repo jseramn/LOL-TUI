@@ -18,7 +18,7 @@ pub fn header_line(snapshot: &Snapshot) -> String {
             line.push_str(&format::clock(time));
         }
         if let Some(mode) = &game.game_mode {
-            line.push(' ');
+            line.push_str("  ");
             line.push_str(mode);
         }
     }

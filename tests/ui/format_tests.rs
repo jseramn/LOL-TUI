@@ -56,6 +56,44 @@ fn compact_player_line_skips_item_laundry_lists() {
 }
 
 #[test]
+fn narrow_column_keeps_the_dead_tag() {
+    let player = PlayerSnapshot {
+        summoner_name: Some("JungleKing".into()),
+        champion: Some("Lee Sin".into()),
+        team: None,
+        position: Some("JUNGLE".into()),
+        level: Some(12),
+        kills: Some(4),
+        deaths: Some(3),
+        assists: Some(9),
+        creep_score: Some(168.0),
+        items: None,
+        spell_one: Some("SummonerFlash".into()),
+        spell_two: Some("SummonerSmite".into()),
+        is_dead: Some(true),
+        respawn_timer: Some(12.5),
+    };
+    let wide = format::player_line(&player);
+    assert!(wide.contains("DEAD 12s"), "full card: {wide}");
+    assert!(wide.contains("F+D"));
+
+    let narrow = format::player_line_for_width(&player, 40);
+    assert!(
+        narrow.chars().count() <= 40,
+        "must fit a 80x24 team half: {narrow}"
+    );
+    assert!(
+        narrow.contains("DEAD 12s"),
+        "death tag must not clip: {narrow}"
+    );
+    assert!(narrow.contains("Lee Sin"));
+    assert!(
+        narrow.contains("Lv") && narrow.contains("CS"),
+        "canonical column still shows level and CS: {narrow}"
+    );
+}
+
+#[test]
 fn local_line_uses_integer_gold_and_the_gold_token() {
     let local = LocalPlayerSnapshot {
         champion: Some("Ahri".into()),
