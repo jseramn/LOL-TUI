@@ -7,6 +7,7 @@ use tui_lol::history::{Continuation, GameIdentity, classify};
 
 fn identity(time: Option<f64>, mode: Option<&str>) -> GameIdentity {
     GameIdentity {
+        game_id: None,
         game_time: time,
         game_mode: mode.map(str::to_owned),
     }
@@ -86,4 +87,34 @@ fn degraded_payloads_never_wipe_history() {
 fn unchanged_identity_is_same_game() {
     let prev = identity(Some(512.25), Some("CLASSIC"));
     assert_eq!(classify(&prev, &prev.clone()), Continuation::SameGame);
+}
+
+#[test]
+fn matching_game_ids_are_the_same_game_even_if_time_drops() {
+    let prev = GameIdentity {
+        game_id: Some(42),
+        game_time: Some(600.0),
+        game_mode: Some("CLASSIC".into()),
+    };
+    let next = GameIdentity {
+        game_id: Some(42),
+        game_time: Some(1.0),
+        game_mode: Some("CLASSIC".into()),
+    };
+    assert_eq!(classify(&prev, &next), Continuation::SameGame);
+}
+
+#[test]
+fn differing_game_ids_are_a_different_game() {
+    let prev = GameIdentity {
+        game_id: Some(1),
+        game_time: Some(100.0),
+        game_mode: Some("CLASSIC".into()),
+    };
+    let next = GameIdentity {
+        game_id: Some(2),
+        game_time: Some(101.0),
+        game_mode: Some("CLASSIC".into()),
+    };
+    assert_eq!(classify(&prev, &next), Continuation::DifferentGame);
 }

@@ -161,8 +161,11 @@ fn canonical_region_order_at_80x24_with_notice_filling_final_row() {
     let events_y = find_row(&buffer, "EVENTS").expect("EVENTS header");
 
     assert_eq!(live_y, 0, "header first");
-    assert!(order_y < chaos_y, "ORDER column before CHAOS column");
-    assert!(chaos_y < local_y, "columns before the local strip");
+    assert_eq!(
+        order_y, chaos_y,
+        "ORDER and CHAOS headers share one body row (side-by-side columns)"
+    );
+    assert!(order_y < local_y, "columns before the local strip");
     assert!(local_y < events_y, "local strip before the ticker");
     assert!(events_y < 23, "ticker before the status row");
 

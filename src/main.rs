@@ -25,10 +25,14 @@ use crossterm::terminal::{
 };
 use ratatui::Terminal;
 use ratatui::backend::CrosstermBackend;
-use tui_lol::api::client::{ApiClient, LIVE_CLIENT_PORT, LOOPBACK_HOST};
-use tui_lol::api::poller::{DEFAULT_CADENCE, PollMsg, Poller, SystemClock};
+use tui_lol::api::client::{ApiClient, ENDPOINT_ALL_GAME_DATA};
+use tui_lol::api::poller::{DEFAULT_CADENCE, Lifecycle, PollMsg, Poller, SystemClock};
 use tui_lol::app::App;
+use tui_lol::cli::{self, Command};
+use tui_lol::dump::dump_snapshot;
 use tui_lol::events::{ShellAction, poll_actions};
+use tui_lol::model::live_data::parse_all_game_data;
+use tui_lol::model::snapshot::Snapshot;
 use tui_lol::ui;
 
 /// Per-frame input-poll window: bounds quit latency and doubles as the UI
@@ -43,6 +47,44 @@ fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+fn run() -> io::Result<()> {
+    let command = match cli::parse_args(std::env::args().skip(1)) {
+        Ok(command) => command,
+        Err(help) if help.starts_with("tui-lol") => {
+            print!("{help}");
+            return Ok(());
+        }
+        Err(err) => {
+            eprintln!("{err}");
+            return Err(io::Error::other(err));
+        }
+    };
+
+    match command {
+        Command::Bridge { listen } => tui_lol::bridge::run(&listen),
+        Command::Dump { live_url, file } => dump_once(live_url.as_deref(), file.as_deref()),
+        Command::Replay { path } => run_replay(&path),
+        Command::Tui { live_url } => run_tui(live_url.as_deref()),
+    }
+}
+
+fn dump_once(live_url: Option<&str>, file: Option<&str>) -> io::Result<()> {
+    let body = match file {
+        Some(path) => std::fs::read_to_string(path)?,
+        None => {
+            let client = ApiClient::from_optional_base(live_url).map_err(io::Error::other)?;
+            client.fetch(ENDPOINT_ALL_GAME_DATA).map_err(|err| {
+                io::Error::other(format!(
+                    "{err} (open a live game, pass --live-url to a tunnel, or dump a JSON file)"
+                ))
+            })?
+        }
+    };
+    let data = parse_all_game_data(&body).map_err(io::Error::other)?;
+    print!("{}", dump_snapshot(&Snapshot::from_live(&data)));
+    Ok(())
 }
 
 /// RAII console state: dropping it always leaves raw mode and the alternate
@@ -89,15 +131,11 @@ fn install_panic_restore_hook() {
 /// Spawns the single poller thread (design D3 — no async runtime) sampling
 /// `/liveclientdata/allgamedata` at the clamped cadence. Returns the receive
 /// side; the thread parks itself the moment the shell drops `rx`.
-fn spawn_poller_thread() -> mpsc::Receiver<PollMsg> {
+fn spawn_poller_thread(client: ApiClient) -> mpsc::Receiver<PollMsg> {
     let (tx, rx) = mpsc::channel();
     thread::Builder::new()
         .name("live-client-poller".into())
         .spawn(move || {
-            // Cannot fail: the host is the pinned loopback literal guarded at
-            // construction (poller spec R1/S3).
-            let client =
-                ApiClient::new(LOOPBACK_HOST, LIVE_CLIENT_PORT).expect("loopback host is valid");
             let mut poller = Poller::new(client, SystemClock, DEFAULT_CADENCE);
             loop {
                 for msg in poller.run_once() {
@@ -112,15 +150,47 @@ fn spawn_poller_thread() -> mpsc::Receiver<PollMsg> {
     rx
 }
 
-/// # Errors
-/// Propagates terminal I/O failures from setup, event polling, or drawing.
-fn run() -> io::Result<()> {
+/// Renders a captured `/allgamedata` JSON as a live dashboard (no poller).
+/// Used for local visual checks and cloud development without a match.
+fn run_replay(path: &str) -> io::Result<()> {
+    let body = std::fs::read_to_string(path)?;
+    let data = parse_all_game_data(&body).map_err(io::Error::other)?;
+    let snapshot = Snapshot::from_live(&data);
+
+    install_panic_restore_hook();
+    let _guard = TerminalGuard::enter()?;
+    let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
+
+    let mut app = App::new();
+    app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
+    app.on_msg(PollMsg::Snapshot(Box::new(snapshot)));
+
+    loop {
+        for action in poll_actions(FRAME_POLL)? {
+            match action {
+                ShellAction::Quit => return Ok(()),
+                ShellAction::Resize { .. } => {}
+            }
+        }
+        terminal.draw(|frame| ui::render(frame, &app))?;
+    }
+}
+
+fn run_tui(live_url: Option<&str>) -> io::Result<()> {
+    let client = ApiClient::from_optional_base(live_url).map_err(io::Error::other)?;
+    if client.is_remote() {
+        eprintln!(
+            "tui-lol: polling {} (tunnel/dev override)",
+            client.url(ENDPOINT_ALL_GAME_DATA)
+        );
+    }
+
     install_panic_restore_hook();
 
     let _guard = TerminalGuard::enter()?;
     let mut terminal = Terminal::new(CrosstermBackend::new(io::stdout()))?;
 
-    let rx = spawn_poller_thread();
+    let rx = spawn_poller_thread(client);
     let mut app = App::new();
 
     loop {

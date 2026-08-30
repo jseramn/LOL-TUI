@@ -46,9 +46,11 @@ Enter a real match (custom game suffices) and wait for the first poll cycle
 (≤ 1 s at default cadence):
 
 - [ ] The view swaps to the live dashboard within about one second of game
-      start: `LIVE` headline, `Team ORDER` / `Team CHAOS` blocks with one
-      panel per player (champion, level, KDA, CS, items, summoner spells),
-      and your own `LOCAL ...` strip at the end.
+      start: scoreboard `LIVE CLASSIC …s Map11 | ORDER k - k CHAOS | DRG …`
+      headline, `Team ORDER` / `Team CHAOS` **side-by-side** columns with one
+      card per player (role, champion, level, KDA, CS, items, summoner spells,
+      plus CS/level/KDA/inventory bars), and your own `LOCAL ...` strip at the
+      end.
 - [ ] Dead players show their exposed respawn value verbatim, e.g.
       `DEAD(respawn 12.5)`; players dead without an exposed timer show
       `DEAD(respawn ?)` — never a ticking countdown (design hard rule).
@@ -239,6 +241,67 @@ band at a time and confirm the degradation matrix (viz:R9/S1):
 - [ ] Leave and enter a DIFFERENT game: the gold trend resets — the row
       returns to `GOLD warming up (n/120)` until two fresh samples arrive
       (viz:R8/S3).
+
+---
+
+## 12. Cloud-dev tunnel (optional — local use does not need this)
+
+Port `https://127.0.0.1:2999` exists **only during a live match**. The TUI
+defaults to that loopback origin. To let a remote agent poll the same
+payload, run a short-lived HTTP bridge and a Cloudflare/Tailscale tunnel
+on the gaming PC (never a permanent public hostname — the live client
+exposes your match).
+
+### 12.1 Identity (match clock / LCU gameId)
+
+With the game already loading or in-game:
+
+```powershell
+curl.exe -k https://127.0.0.1:2999/liveclientdata/gamestats
+python scripts/live_bridge.py --id-only
+```
+
+`gamestats` is the live clock/mode/map. The numeric match id usually comes
+from the LCU lockfile (`lol-gameflow/v1/session` → `gameData.gameId`),
+which `scripts/live_bridge.py` prints when it can read the lockfile.
+
+### 12.2 Bridge + cloudflared (paste the URL to the cloud agent)
+
+```powershell
+# One shot: HTTP proxy on 127.0.0.1:18789 + trycloudflare URL
+python scripts/live_bridge.py --tunnel
+```
+
+Or two terminals:
+
+```powershell
+cargo run -j 1 -- bridge
+cloudflared tunnel --url http://127.0.0.1:18789
+```
+
+Tailscale alternative (machine already on your tailnet):
+
+```powershell
+cargo run -j 1 -- bridge
+tailscale serve --bg 18789
+```
+
+Then the agent runs:
+
+```
+cargo run -- dump --live-url https://<trycloudflare-host>
+# or
+$env:TUI_LOL_LIVE_URL='https://<trycloudflare-host>'; cargo run -j 1
+```
+
+Local play stays `cargo run` with no flags.
+
+Offline visual check (no match, no tunnel):
+
+```
+cargo run -j 1 -- replay tests/fixtures/allgamedata/full.json
+cargo run -j 1 -- dump tests/fixtures/allgamedata/full.json
+```
 
 ---
 

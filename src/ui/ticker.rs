@@ -22,6 +22,20 @@ pub(crate) const EMPTY_EVENTS: &str = "No match events yet.";
 /// Draws the ticker section into its assigned region: the header row, then
 /// one line per event, clipped at the band boundary.
 pub(crate) fn render(events: &[GameEvent], area: Rect, frame: &mut Frame) {
+    draw_lines(frame, area, &ticker_lines(events));
+}
+
+/// Headless ticker text (header + event lines or empty-state).
+pub fn dump_events(events: &[GameEvent]) -> String {
+    let mut out = String::new();
+    for line in ticker_lines(events) {
+        out.push_str(&line);
+        out.push('\n');
+    }
+    out
+}
+
+fn ticker_lines(events: &[GameEvent]) -> Vec<String> {
     let mut lines = vec![EVENTS_HEADER.to_owned()];
     if events.is_empty() {
         lines.push(EMPTY_EVENTS.to_owned());
@@ -30,7 +44,7 @@ pub(crate) fn render(events: &[GameEvent], area: Rect, frame: &mut Frame) {
             lines.push(event_line(event));
         }
     }
-    draw_lines(frame, area, &lines);
+    lines
 }
 
 /// Formats one event line. The exposed time always leads the line so scan

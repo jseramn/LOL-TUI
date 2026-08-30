@@ -69,12 +69,23 @@ pub struct ItemSnapshot {
 }
 
 /// Local-player-only detail. Gold lives exclusively here.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct LocalPlayerSnapshot {
     pub champion: Option<String>,
     pub level: Option<u32>,
     pub current_gold: Option<f64>,
     pub stats: Option<ActivePlayerStats>,
+    /// Ability ranks Q/W/E/R as exposed; `None` when the block is absent.
+    pub abilities: Option<AbilityRanks>,
+}
+
+/// Exposed ability ranks for the local player. Absence per-slot stays `None`.
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
+pub struct AbilityRanks {
+    pub q: Option<u32>,
+    pub w: Option<u32>,
+    pub e: Option<u32>,
+    pub r: Option<u32>,
 }
 
 /// Alias kept explicit at the seam so UI code never imports raw DTO types
@@ -82,11 +93,12 @@ pub struct LocalPlayerSnapshot {
 pub type ActivePlayerStats = crate::model::live_data::Statistics;
 
 /// Game-level info surfaced on the status line / header.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct GameInfo {
     pub game_mode: Option<String>,
     pub game_time: Option<f64>,
     pub map_name: Option<String>,
+    pub game_id: Option<u64>,
 }
 
 /// Supported event taxonomy for the ticker, plus a lossless fallback.
@@ -286,6 +298,7 @@ impl Snapshot {
                 game_mode: g.game_mode.clone(),
                 game_time: g.game_time,
                 map_name: g.map_name.clone(),
+                game_id: g.game_id,
             }),
             events: data
                 .events
@@ -345,6 +358,12 @@ impl LocalPlayerSnapshot {
             level: a.level,
             current_gold: a.current_gold,
             stats: a.statistics.clone(),
+            abilities: a.abilities.as_ref().map(|abilities| AbilityRanks {
+                q: abilities.q.as_ref().and_then(|ab| ab.ability_level),
+                w: abilities.w.as_ref().and_then(|ab| ab.ability_level),
+                e: abilities.e.as_ref().and_then(|ab| ab.ability_level),
+                r: abilities.r.as_ref().and_then(|ab| ab.ability_level),
+            }),
         }
     }
 }

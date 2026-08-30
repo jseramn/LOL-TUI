@@ -301,11 +301,13 @@ fn gold_snap(mode: Option<&str>, time: Option<f64>, gold: Option<f64>) -> Snapsh
             level: None,
             current_gold: gold,
             stats: None,
+            abilities: None,
         }),
         game: mode.map(|mode| GameInfo {
             game_mode: Some(mode.to_owned()),
             game_time: time,
             map_name: None,
+            game_id: None,
         }),
         events: Vec::new(),
     }
@@ -479,6 +481,7 @@ fn degraded_snapshot_without_game_info_appends_instead_of_resetting() {
             level: None,
             current_gold: Some(999.0),
             stats: None,
+            abilities: None,
         }),
         game: None,
         events: Vec::new(),

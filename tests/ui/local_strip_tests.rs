@@ -79,6 +79,7 @@ fn local_player(stats: Option<Statistics>, current_gold: Option<f64>) -> LocalPl
         level: Some(12),
         current_gold,
         stats,
+        abilities: None,
     }
 }
 
@@ -320,6 +321,7 @@ fn snapshot_with_gold(gold: Option<f64>, game_time: f64) -> Snapshot {
             game_mode: Some("classic".to_owned()),
             game_time: Some(game_time),
             map_name: None,
+            game_id: None,
         }),
         events: Vec::new(),
     }
@@ -496,6 +498,7 @@ fn local_strip_rows_stay_within_the_glyph_whitelist() {
             game_mode: Some("classic".to_owned()),
             game_time: Some(80.0),
             map_name: None,
+            game_id: None,
         }),
         events: Vec::new(),
     })));

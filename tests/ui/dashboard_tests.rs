@@ -17,8 +17,9 @@ use tui_lol::model::live_data::LiveData;
 use tui_lol::model::snapshot::Snapshot;
 use tui_lol::ui;
 
-/// Wide enough that a fully itemized player line never clips.
-const WIDTH: u16 = 240;
+/// Wide enough that a fully itemized player line never clips inside one
+/// side-by-side team column (~200 cells each).
+const WIDTH: u16 = 400;
 const HEIGHT: u16 = 32;
 
 fn snapshot_from_fixture(name: &str) -> Snapshot {
@@ -108,23 +109,37 @@ fn full_snapshot_renders_all_ten_panels_exactly_once() {
 }
 
 #[test]
-fn panels_are_grouped_by_team_order_then_chaos() {
+fn panels_are_grouped_by_team_side_by_side() {
     let buffer = draw(&live_app_with("full"));
 
     let order_header = find_row(&buffer, "Team ORDER").expect("ORDER team header");
     let chaos_header = find_row(&buffer, "Team CHAOS").expect("CHAOS team header");
-    assert!(order_header < chaos_header, "ORDER block must come first");
+    assert_eq!(
+        order_header, chaos_header,
+        "ORDER and CHAOS headers share the top body row (side-by-side columns)"
+    );
+
+    let mid = WIDTH / 2;
+    let name_x = |name: &str| -> u16 {
+        let y = find_row(&buffer, name).expect(name);
+        let text = row_text(&buffer, y);
+        text.find(name)
+            .expect("name in row")
+            .try_into()
+            .expect("x fits u16")
+    };
 
     for name in ORDER_NAMES {
-        let y = find_row(&buffer, name).expect(name);
         assert!(
-            order_header < y && y < chaos_header,
-            "{name} must sit inside the ORDER block"
+            name_x(name) < mid,
+            "{name} must sit in the left (ORDER) column"
         );
     }
     for name in CHAOS_NAMES {
-        let y = find_row(&buffer, name).expect(name);
-        assert!(y > chaos_header, "{name} must sit inside the CHAOS block");
+        assert!(
+            name_x(name) >= mid,
+            "{name} must sit in the right (CHAOS) column"
+        );
     }
 }
 
@@ -367,4 +382,22 @@ fn missing_local_gold_degrades_and_no_enemy_panel_shows_gold() {
             );
         }
     }
+}
+
+#[test]
+fn scoreboard_header_shows_mode_clock_and_team_kills() {
+    let buffer = draw(&live_app_with("full"));
+    let header = row_text(&buffer, 0);
+    for token in [
+        "LIVE", "CLASSIC", "754.19s", "Map11", "ORDER 23", "20 CHAOS", "DRG 1", "HERALD 1",
+    ] {
+        assert!(
+            header.contains(token),
+            "scoreboard header missing {token:?}: {header}"
+        );
+    }
+    assert!(
+        !header.contains("Gold"),
+        "gold must never appear on the header: {header}"
+    );
 }

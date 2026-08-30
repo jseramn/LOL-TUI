@@ -93,8 +93,33 @@ pub struct ActivePlayer {
     /// Exposed only for the local player; rendered verbatim.
     pub current_gold: Option<f64>,
     pub level: Option<u32>,
-    /// Exposed stat detail block; unknown stats are ignored.
+    /// Q/W/E/R block as exposed; absent in spectator-like payloads.
+    pub abilities: Option<Abilities>,
+    /// Exposed stat detail. Live payloads use `championStats`; older
+    /// fixtures and some captures still send `statistics`.
+    #[serde(alias = "championStats")]
     pub statistics: Option<Statistics>,
+}
+
+/// Ability ranks exposed on `activePlayer.abilities`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Abilities {
+    #[serde(rename = "Q")]
+    pub q: Option<Ability>,
+    #[serde(rename = "W")]
+    pub w: Option<Ability>,
+    #[serde(rename = "E")]
+    pub e: Option<Ability>,
+    #[serde(rename = "R")]
+    pub r: Option<Ability>,
+}
+
+/// One ability entry (level + display name).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Ability {
+    pub ability_level: Option<u32>,
+    pub display_name: Option<String>,
 }
 
 /// Numeric stat detail exposed by the client. All optional; extras dropped.
@@ -109,14 +134,20 @@ pub struct Statistics {
     pub crit_chance: Option<f64>,
     pub current_health: Option<f64>,
     pub health_regen_rate: Option<f64>,
+    #[serde(alias = "lifeSteal")]
     pub lifesteal: Option<f64>,
     pub magic_resist: Option<f64>,
     pub max_health: Option<f64>,
+    #[serde(alias = "moveSpeed")]
     pub movement_speed: Option<f64>,
     pub omnivamp: Option<f64>,
     pub physical_lethality: Option<f64>,
     pub physical_vamp: Option<f64>,
+    /// Mana / energy. Live `championStats` names these `resourceValue` /
+    /// `resourceMax`; fixtures keep `power` / `powerMax`.
+    #[serde(alias = "resourceValue")]
     pub power: Option<f64>,
+    #[serde(alias = "resourceMax")]
     pub power_max: Option<f64>,
     pub power_regen_rate: Option<f64>,
 }
@@ -202,6 +233,9 @@ pub struct GameStats {
     pub game_mode: Option<String>,
     /// Elapsed game time in seconds, verbatim. Never used to derive timers.
     pub game_time: Option<f64>,
+    /// Numeric live-session id when the client exposes it (often absent;
+    /// the LCU `gameData.gameId` is the reliable match id).
+    pub game_id: Option<u64>,
     pub map_name: Option<String>,
     pub map_number: Option<u32>,
     pub map_terrain: Option<String>,

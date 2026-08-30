@@ -16,7 +16,9 @@
 //! rect containing the status row.
 
 pub mod dashboard;
+pub mod format;
 pub mod local_strip;
+pub mod scoreboard;
 pub mod standby;
 pub mod status;
 pub mod team;

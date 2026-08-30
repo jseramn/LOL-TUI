@@ -129,6 +129,7 @@ pub const IDENTITY_TIME_TOLERANCE_SECONDS: f64 = 5.0;
 /// inconclusive comparison conservatively preserves history.
 #[derive(Debug, Clone, PartialEq)]
 pub struct GameIdentity {
+    pub game_id: Option<u64>,
     pub game_time: Option<f64>,
     pub game_mode: Option<String>,
 }
@@ -137,6 +138,7 @@ impl GameIdentity {
     /// Extracts the identity from a snapshot's normalized game info.
     pub fn from_game_info(info: &crate::model::snapshot::GameInfo) -> Self {
         Self {
+            game_id: info.game_id,
             game_time: info.game_time,
             game_mode: info.game_mode.clone(),
         }
@@ -152,12 +154,21 @@ pub enum Continuation {
 }
 
 /// Classifies whether `next` continues the game described by `prev`
-/// (design D1):
+/// (design D1, extended with optional live `gameId`):
 ///
-/// 1. both game times present and `prev - next > 5.0 s` ⇒ different game;
-/// 2. else both modes present and changed ⇒ different game;
-/// 3. otherwise same game — absence is never evidence of a new game.
+/// 1. both game ids present and unequal ⇒ different game; both present and
+///    equal ⇒ same game (id is authoritative over time jitter);
+/// 2. else both game times present and `prev - next > 5.0 s` ⇒ different;
+/// 3. else both modes present and changed ⇒ different game;
+/// 4. otherwise same game — absence is never evidence of a new game.
 pub fn classify(prev: &GameIdentity, next: &GameIdentity) -> Continuation {
+    if let (Some(prev_id), Some(next_id)) = (prev.game_id, next.game_id) {
+        return if prev_id == next_id {
+            Continuation::SameGame
+        } else {
+            Continuation::DifferentGame
+        };
+    }
     if let (Some(prev_time), Some(next_time)) = (prev.game_time, next.game_time)
         && prev_time - next_time > IDENTITY_TIME_TOLERANCE_SECONDS
     {

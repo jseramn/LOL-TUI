@@ -72,6 +72,17 @@ fn snapshot_normalizes_full_fixture() {
     assert_eq!(local.current_gold, Some(1234.56));
     let stats = local.stats.as_ref().expect("stat detail normalized");
     assert_eq!(stats.max_health, Some(2015.0));
+    let ranks = local.abilities.as_ref().expect("ability ranks normalized");
+    assert_eq!(ranks.q, Some(4));
+    assert_eq!(ranks.w, Some(2));
+    assert_eq!(ranks.e, Some(3));
+    assert_eq!(ranks.r, Some(1));
+
+    let dumped = tui_lol::dump::dump_snapshot(&snap);
+    assert!(dumped.contains("LIVE CLASSIC 754.19s Map11"));
+    assert!(dumped.contains("ORDER 23 - 20 CHAOS"));
+    assert!(dumped.contains("TopLaneTitan"));
+    assert!(dumped.contains("Q4 W2 E3 R1"));
 
     assert_eq!(snap.events.len(), 9);
     let has_first_blood = snap.events.iter().any(|e| {

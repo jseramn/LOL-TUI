@@ -158,6 +158,7 @@ impl<C: Clock> App<C> {
             .as_ref()
             .map(GameIdentity::from_game_info)
             .unwrap_or(GameIdentity {
+                game_id: None,
                 game_time: None,
                 game_mode: None,
             });
