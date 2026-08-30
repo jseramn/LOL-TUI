@@ -5,13 +5,18 @@ The game client only serves https://127.0.0.1:2999 while you are IN a
 match (not lobby / champ select), with a Riot-pinned TLS cert. Cloud
 agents cannot reach that port, so this process:
 
-  1. Prints the live game identity (and LCU gameId when the lockfile exists)
-  2. Serves a plain-HTTP reverse proxy on 127.0.0.1:18789
+  1. Prints the live game identity. The numeric match id usually comes
+     from the LCU (lockfile or LeagueClientUx command line on Windows);
+     the Live Client payload often omits gameId — treat LCU as canonical.
+  2. Serves a plain-HTTP reverse proxy on 127.0.0.1:18789 (loopback only)
   3. Optionally launches `cloudflared tunnel --url http://127.0.0.1:18789`
      and prints the trycloudflare URL to paste back to the cloud agent
 
+Never tunnel the LCU HTTPS port — only this HTTP bridge in front of :2999.
+
 Usage (PowerShell, from the repo root, with LoL already in a game):
 
+    python scripts/live_bridge.py --id-only
     python scripts/live_bridge.py
     python scripts/live_bridge.py --tunnel
 
@@ -52,30 +57,122 @@ def live_get(path: str, timeout: float = 2.0) -> tuple[int, bytes]:
         raise ConnectionError(str(err)) from err
 
 
+def _riot_roots() -> list[str]:
+    roots: list[str] = []
+    for env in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA", "PROGRAMDATA"):
+        base = os.environ.get(env)
+        if base:
+            roots.append(os.path.join(base, "Riot Games"))
+    roots.append(r"C:\Riot Games")
+    seen: set[str] = set()
+    out: list[str] = []
+    for root in roots:
+        norm = os.path.normcase(os.path.abspath(root))
+        if norm not in seen and os.path.isdir(root):
+            seen.add(norm)
+            out.append(root)
+    return out
+
+
 def find_lockfile() -> str | None:
-    candidates = [
+    """Return the first readable LCU lockfile among known Riot install paths."""
+    static = [
         os.path.join(os.environ.get("PROGRAMFILES", r"C:\Program Files"), "Riot Games", "League of Legends", "lockfile"),
         r"C:\Riot Games\League of Legends\lockfile",
-        os.path.join(os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)"), "Riot Games", "League of Legends", "lockfile"),
+        os.path.join(
+            os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)"),
+            "Riot Games",
+            "League of Legends",
+            "lockfile",
+        ),
         os.path.expandvars(r"%LOCALAPPDATA%\Riot Games\League of Legends\lockfile"),
+        os.path.expandvars(r"%LOCALAPPDATA%\Riot Games\Riot Client\Config\lockfile"),
     ]
-    for path in candidates:
-        if path and os.path.isfile(path):
+    seen: set[str] = set()
+    for path in static:
+        if not path:
+            continue
+        norm = os.path.normcase(os.path.abspath(path))
+        if norm in seen:
+            continue
+        seen.add(norm)
+        if os.path.isfile(path):
             return path
+
+    for root in _riot_roots():
+        for dirpath, dirnames, filenames in os.walk(root):
+            depth = dirpath[len(root) :].count(os.sep)
+            if depth > 4:
+                dirnames.clear()
+                continue
+            if "lockfile" in filenames:
+                path = os.path.join(dirpath, "lockfile")
+                norm = os.path.normcase(os.path.abspath(path))
+                if norm not in seen and os.path.isfile(path):
+                    return path
     return None
 
 
-def lcu_game_id() -> str | None:
-    lock = find_lockfile()
-    if not lock:
-        return None
+def _parse_lockfile(path: str) -> tuple[str, str, str] | None:
     try:
-        raw = open(lock, encoding="utf-8").read().strip()
-        # LeagueClient:pid:port:password:https
+        raw = open(path, encoding="utf-8").read().strip()
         parts = raw.split(":")
         if len(parts) < 5:
             return None
         port, password, protocol = parts[2], parts[3], parts[4]
+        if port.isdigit() and password:
+            return port, password, protocol
+    except OSError:
+        return None
+    return None
+
+
+def _lcu_from_leagueclientux_cmdline() -> tuple[str, str, str] | None:
+    """Windows: read --app-port / --remoting-auth-token from LeagueClientUx."""
+    if sys.platform != "win32":
+        return None
+    cmdline = ""
+    try:
+        out = subprocess.check_output(
+            [
+                "powershell",
+                "-NoProfile",
+                "-Command",
+                "Get-CimInstance Win32_Process -Filter \"name='LeagueClientUx.exe'\" "
+                "| Select-Object -ExpandProperty CommandLine -First 1",
+            ],
+            text=True,
+            timeout=5,
+            stderr=subprocess.DEVNULL,
+        )
+        cmdline = out.strip()
+    except Exception:
+        return None
+    if not cmdline:
+        return None
+    port_m = re.search(r"--app-port=(\d+)", cmdline)
+    token_m = re.search(r"--remoting-auth-token=([^\s\"']+)", cmdline)
+    if not port_m or not token_m:
+        return None
+    return port_m.group(1), token_m.group(1), "https"
+
+
+def lcu_credentials() -> tuple[str, str, str] | None:
+    """Return (port, password, protocol) for the local LCU, if discoverable."""
+    lock = find_lockfile()
+    if lock:
+        parsed = _parse_lockfile(lock)
+        if parsed:
+            return parsed
+    return _lcu_from_leagueclientux_cmdline()
+
+
+def lcu_game_id() -> str | None:
+    creds = lcu_credentials()
+    if not creds:
+        return None
+    port, password, protocol = creds
+    try:
         token = base64.b64encode(f"riot:{password}".encode()).decode()
         url = f"{protocol}://127.0.0.1:{port}/lol-gameflow/v1/session"
         req = urllib.request.Request(url, headers={"Authorization": f"Basic {token}"})
@@ -114,10 +211,21 @@ def print_identity() -> None:
     except Exception as err:
         print(f"identity: not in game ({err})", flush=True)
         return
-    gid = ident.get("gameIdLcu") or ident.get("gameIdLive") or "n/a"
+    gid_lcu = ident.get("gameIdLcu")
+    gid_live = ident.get("gameIdLive")
+    if gid_lcu:
+        gid = gid_lcu
+        id_src = "lcu"
+    elif gid_live not in (None, "", 0, "0"):
+        gid = gid_live
+        id_src = "live"
+    else:
+        gid = "n/a"
+        id_src = "missing"
     print(
         "LIVE"
         f" id={gid}"
+        f" id_src={id_src}"
         f" mode={ident.get('gameMode')}"
         f" time={ident.get('gameTime')}"
         f" map={ident.get('mapName')}"
@@ -125,6 +233,12 @@ def print_identity() -> None:
         f" players={ident.get('playerCount')}",
         flush=True,
     )
+    if id_src == "missing":
+        print(
+            "  note: Live Client often omits gameId; open the client and retry "
+            "(LCU lockfile or LeagueClientUx --app-port on Windows).",
+            flush=True,
+        )
 
 
 class Handler(BaseHTTPRequestHandler):

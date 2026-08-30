@@ -248,9 +248,12 @@ band at a time and confirm the degradation matrix (viz:R9/S1):
 
 Port `https://127.0.0.1:2999` exists **only during a live match**. The TUI
 defaults to that loopback origin. To let a remote agent poll the same
-payload, run a short-lived HTTP bridge and a Cloudflare/Tailscale tunnel
-on the gaming PC (never a permanent public hostname — the live client
-exposes your match).
+payload, run a short-lived **HTTP bridge on loopback** and a
+Cloudflare/Tailscale tunnel on the gaming PC (never a permanent public
+hostname — the live client exposes your match).
+
+**Never tunnel the LCU** (Riot client HTTPS on another port). Only tunnel
+the plain-HTTP bridge in front of `:2999` (default bind `127.0.0.1:18789`).
 
 ### 12.1 Identity (match clock / LCU gameId)
 
@@ -261,11 +264,19 @@ curl.exe -k https://127.0.0.1:2999/liveclientdata/gamestats
 python scripts/live_bridge.py --id-only
 ```
 
-`gamestats` is the live clock/mode/map. The numeric match id usually comes
-from the LCU lockfile (`lol-gameflow/v1/session` → `gameData.gameId`),
-which `scripts/live_bridge.py` prints when it can read the lockfile.
+`gamestats` is the live clock/mode/map. The numeric match id **often does
+not appear** in the Live Client payload (`gameId` is frequently absent or
+zero). Treat the **LCU** as canonical: `lol-gameflow/v1/session` →
+`gameData.gameId`, discovered via the install-dir lockfile or, on Windows,
+`LeagueClientUx.exe` command-line `--app-port` / `--remoting-auth-token`
+when the lockfile is missing. `scripts/live_bridge.py` prints `id_src=lcu`
+when it resolves that value.
 
-### 12.2 Bridge + cloudflared (paste the URL to the cloud agent)
+### 12.2 Bridge + cloudflared quick tunnel (paste URL to the cloud agent)
+
+The bridge listens on **loopback only** (`127.0.0.1:18789` by default).
+`cloudflared tunnel --url http://127.0.0.1:18789` is a **quick tunnel**
+(trycloudflare.com) — not `cloudflared serve` and not a stable hostname.
 
 ```powershell
 # One shot: HTTP proxy on 127.0.0.1:18789 + trycloudflare URL
@@ -279,19 +290,27 @@ cargo run -j 1 -- bridge
 cloudflared tunnel --url http://127.0.0.1:18789
 ```
 
-Tailscale alternative (machine already on your tailnet):
+### 12.3 Tailscale (tailnet vs public)
+
+Tailscale **Serve** (`tailscale serve --bg 18789`) exposes the bridge to
+**your tailnet only** — other Tailscale nodes, not the public Internet.
+Use **Funnel** (`tailscale funnel 18789`) when the cloud agent is outside
+your tailnet and needs a public HTTPS URL (same threat model as
+trycloudflare: short-lived, match data only).
 
 ```powershell
 cargo run -j 1 -- bridge
 tailscale serve --bg 18789
+# public alternative:
+# tailscale funnel 18789
 ```
 
 Then the agent runs:
 
 ```
-cargo run -- dump --live-url https://<trycloudflare-host>
+cargo run -- dump --live-url https://<tunnel-host>
 # or
-$env:TUI_LOL_LIVE_URL='https://<trycloudflare-host>'; cargo run -j 1
+$env:TUI_LOL_LIVE_URL='https://<tunnel-host>'; cargo run -j 1
 ```
 
 Local play stays `cargo run` with no flags.
