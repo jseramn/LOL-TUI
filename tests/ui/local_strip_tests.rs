@@ -36,6 +36,7 @@ fn ps(team: Option<Team>) -> PlayerSnapshot {
         deaths: None,
         assists: None,
         creep_score: None,
+        ward_score: None,
         items: None,
         spell_one: None,
         spell_two: None,
@@ -187,9 +188,9 @@ fn gauges_fill_70_and_80_percent_for_the_local_player_only() {
     );
     let buffer = draw(&app);
 
-    let hp = unique_gauge_row(&buffer, "LOCAL HP");
+    let hp = unique_gauge_row(&buffer, "Vida");
     assert_gauge_fill(&hp, 0.7, "HP gauge");
-    let power = unique_gauge_row(&buffer, "LOCAL Power");
+    let power = unique_gauge_row(&buffer, "Mana");
     assert_gauge_fill(&power, 0.8, "Power gauge");
 }
 
@@ -206,9 +207,9 @@ fn missing_power_renders_placeholder_while_the_hp_gauge_renders_normally() {
     );
     let buffer = draw(&app);
 
-    let power = unique_gauge_row(&buffer, "LOCAL Power");
+    let power = unique_gauge_row(&buffer, "Mana");
     assert!(
-        power.trim_end().starts_with("LOCAL Power ?"),
+        power.trim_end().starts_with("Mana ?"),
         "absent power must show the placeholder: {power:?}"
     );
     assert_eq!(
@@ -222,15 +223,15 @@ fn missing_power_renders_placeholder_while_the_hp_gauge_renders_normally() {
         "placeholder fabricates no track either: {power:?}"
     );
 
-    let hp = unique_gauge_row(&buffer, "LOCAL HP");
+    let hp = unique_gauge_row(&buffer, "Vida");
     assert_gauge_fill(&hp, 0.7, "HP gauge must be unaffected");
 
     // Wholly absent stat detail degrades BOTH gauges.
     let bare = live_app_with_local(vec![], Some(local_player(None, None)));
     let bare_buffer = draw(&bare);
-    let hp = unique_gauge_row(&bare_buffer, "LOCAL HP");
+    let hp = unique_gauge_row(&bare_buffer, "Vida");
     assert!(
-        hp.trim_end().starts_with("LOCAL HP ?"),
+        hp.trim_end().starts_with("Vida ?"),
         "absent stats must show the placeholder on every gauge: {hp:?}"
     );
 }
@@ -249,7 +250,7 @@ fn overrange_health_clamps_to_a_full_gauge_without_panicking() {
     );
     let buffer = draw(&app);
 
-    let hp = unique_gauge_row(&buffer, "LOCAL HP");
+    let hp = unique_gauge_row(&buffer, "Vida");
     assert_eq!(
         hp.chars().filter(|c| *c == '\u{2591}').count(),
         0,
@@ -273,16 +274,16 @@ fn gauges_render_inside_the_local_band_between_strip_and_ticker() {
     let buffer = draw(&app);
     let height = buffer.area.height;
 
-    let local_y = find_row(&buffer, "LOCAL").expect("legacy LOCAL strip line");
-    let events_y = find_row(&buffer, "EVENTS").expect("ticker section");
-    let hp_y = (0..height).find(|&y| row_text(&buffer, y).trim_end().starts_with("LOCAL HP"));
-    let power_y = (0..height).find(|&y| row_text(&buffer, y).trim_end().starts_with("LOCAL Power"));
+    let local_y = find_row(&buffer, "Tu").expect("legacy local strip line");
+    let events_y = find_row(&buffer, "Sucesos").expect("ticker section");
+    let hp_y = (0..height).find(|&y| row_text(&buffer, y).trim_end().starts_with("Vida"));
+    let power_y = (0..height).find(|&y| row_text(&buffer, y).trim_end().starts_with("Mana"));
 
     assert!(hp_y.is_some(), "HP gauge row must render");
     assert!(power_y.is_some(), "Power gauge row must render");
     assert!(
         hp_y.expect("checked") > local_y && power_y.expect("checked") > local_y,
-        "gauges sit below the LOCAL text line"
+        "gauges sit below the local text line"
     );
     assert!(
         hp_y.expect("checked") < events_y && power_y.expect("checked") < events_y,
@@ -299,12 +300,12 @@ fn gauges_render_inside_the_local_band_between_strip_and_ticker() {
 fn unique_gold_row(buffer: &Buffer) -> String {
     let matches: Vec<String> = (0..buffer.area.height)
         .map(|y| row_text(buffer, y))
-        .filter(|row| row.trim_end().starts_with("GOLD"))
+        .filter(|row| row.trim_end().starts_with("oro"))
         .collect();
     assert_eq!(
         matches.len(),
         1,
-        "exactly one GOLD trend row may exist (gold stays on the local strip)"
+        "exactly one oro trend row may exist (gold stays on the local strip)"
     );
     matches.into_iter().next().expect("exactly one")
 }
@@ -353,7 +354,7 @@ fn warm_up_placeholder_shows_until_two_real_samples_exist() {
     let app = app_with_gold_series(&[Some(4350.0)]);
     let row = unique_gold_row(&draw(&app));
     assert!(
-        row.contains("warming up (1/120)"),
+        row.contains("calentando (1/120)"),
         "one real sample must warm up explicitly: {row:?}"
     );
     assert!(
@@ -366,7 +367,7 @@ fn warm_up_placeholder_shows_until_two_real_samples_exist() {
     let app = app_with_gold_series(&[None]);
     let row = unique_gold_row(&draw(&app));
     assert!(
-        row.contains("warming up (0/120)"),
+        row.contains("calentando (0/120)"),
         "absent gold must count as no progress: {row:?}"
     );
 
@@ -374,7 +375,7 @@ fn warm_up_placeholder_shows_until_two_real_samples_exist() {
     let app = app_with_gold_series(&[Some(10.0), None]);
     let row = unique_gold_row(&draw(&app));
     assert!(
-        row.contains("warming up (1/120)"),
+        row.contains("calentando (1/120)"),
         "a gap must never count as a real sample: {row:?}"
     );
 }
@@ -388,7 +389,7 @@ fn sparkline_draws_the_trend_once_two_real_samples_exist() {
     let row = unique_gold_row(&draw(&app));
 
     assert!(
-        !row.contains("warming"),
+        !row.contains("calentando"),
         "a drawn trend must not claim to be warming up: {row:?}"
     );
     let ramp_glyphs: Vec<char> = row
@@ -464,7 +465,7 @@ fn sparkline_tracks_the_newest_samples_beyond_the_chart_width() {
     }
 
     let row = unique_gold_row(&draw(&app));
-    let chart: Vec<char> = row.chars().skip("GOLD ".len()).collect();
+    let chart: Vec<char> = row.chars().skip("oro ".len()).collect();
     let rightmost = chart
         .iter()
         .rposition(|c| SPARKLINE_LEVELS.contains(&c.to_string().as_str()))
@@ -509,9 +510,9 @@ fn local_strip_rows_stay_within_the_glyph_whitelist() {
     for y in 0..buffer.area.height {
         let row = row_text(&buffer, y);
         let trimmed = row.trim_end();
-        if !(trimmed.starts_with("LOCAL HP")
-            || trimmed.starts_with("LOCAL Power")
-            || trimmed.starts_with("GOLD"))
+        if !(trimmed.starts_with("Vida")
+            || trimmed.starts_with("Mana")
+            || trimmed.starts_with("oro"))
         {
             continue;
         }

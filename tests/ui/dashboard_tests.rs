@@ -11,11 +11,13 @@
 use ratatui::Terminal;
 use ratatui::backend::TestBackend;
 use ratatui::buffer::Buffer;
+use ratatui::layout::Rect;
 use tui_lol::api::poller::{Lifecycle, PollMsg};
 use tui_lol::app::App;
 use tui_lol::model::live_data::LiveData;
 use tui_lol::model::snapshot::Snapshot;
 use tui_lol::ui;
+use tui_lol::ui::select_layout;
 
 /// Wide enough that a fully itemized player line never clips inside one
 /// side-by-side team column (~200 cells each).
@@ -53,28 +55,24 @@ fn find_row(buffer: &Buffer, needle: &str) -> Option<u16> {
     (0..buffer.area.height).find(|&y| row_text(buffer, y).contains(needle))
 }
 
-fn rows_containing(buffer: &Buffer, needle: &str) -> Vec<u16> {
-    (0..buffer.area.height)
+fn body_range(buffer: &Buffer) -> std::ops::Range<u16> {
+    let layout = select_layout(Rect::new(0, 0, buffer.area.width, buffer.area.height));
+    layout.areas.body.y..layout.areas.body.bottom()
+}
+
+/// Rows matching `needle` inside the team columns only. The briefing and
+/// ticker also repeat champion names.
+fn team_rows_containing(buffer: &Buffer, needle: &str) -> Vec<u16> {
+    body_range(buffer)
         .filter(|&y| row_text(buffer, y).contains(needle))
         .collect()
 }
 
-/// Rows matching `needle` excluding the local-player strip (whose label is
-/// `LOCAL`) and the event-ticker section: the strip repeats the local
-/// champion, and the ticker legitimately repeats participant names that can
-/// embed champion substrings (e.g. `Syndra` inside victim `SyndraGod`), so
-/// roster scans stay scoped to the panel rows above the EVENTS header.
-fn team_rows_containing(buffer: &Buffer, needle: &str) -> Vec<u16> {
-    let events_y = find_row(buffer, "EVENTS").unwrap_or(buffer.area.height);
-    rows_containing(buffer, needle)
-        .into_iter()
-        .take_while(|&y| y < events_y)
-        .filter(|&y| !row_text(buffer, y).contains("LOCAL"))
-        .collect()
-}
-
 fn player_row(buffer: &Buffer, name: &str) -> String {
-    let y = find_row(buffer, name).unwrap_or_else(|| panic!("row for {name} must exist"));
+    let y = team_rows_containing(buffer, name)
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| panic!("row for {name} must exist"));
     row_text(buffer, y)
 }
 
@@ -87,14 +85,8 @@ fn full_snapshot_renders_all_ten_panels_exactly_once() {
     // Panel rows end where the event ticker begins: the ticker (ui spec R5)
     // legitimately repeats participant NAMES, so the once-only roster scan
     // is scoped to the rows above the EVENTS header.
-    let events_y = find_row(&buffer, "EVENTS").expect("EVENTS header");
     for name in ORDER_CHAMPS.into_iter().chain(CHAOS_CHAMPS) {
-        let rows: Vec<u16> = (0..events_y)
-            .filter(|&y| {
-                let text = row_text(&buffer, y);
-                text.contains(name) && !text.contains("LOCAL")
-            })
-            .collect();
+        let rows = team_rows_containing(&buffer, name);
         assert_eq!(rows.len(), 1, "{name} must appear on exactly one panel row");
     }
 }
@@ -103,8 +95,8 @@ fn full_snapshot_renders_all_ten_panels_exactly_once() {
 fn panels_are_grouped_by_team_side_by_side() {
     let buffer = draw(&live_app_with("full"));
 
-    let order_header = find_row(&buffer, "Team ORDER").expect("ORDER team header");
-    let chaos_header = find_row(&buffer, "Team CHAOS").expect("CHAOS team header");
+    let order_header = find_row(&buffer, "Equipo Orden").expect("Orden team header");
+    let chaos_header = find_row(&buffer, "Equipo Caos").expect("Caos team header");
     assert_eq!(
         order_header, chaos_header,
         "ORDER and CHAOS headers share the top body row (side-by-side columns)"
@@ -112,7 +104,10 @@ fn panels_are_grouped_by_team_side_by_side() {
 
     let mid = WIDTH / 2;
     let name_x = |name: &str| -> u16 {
-        let y = find_row(&buffer, name).expect(name);
+        let y = team_rows_containing(&buffer, name)
+            .into_iter()
+            .next()
+            .expect(name);
         let text = row_text(&buffer, y);
         text.find(name)
             .expect("name in row")
@@ -139,7 +134,7 @@ fn every_panel_shows_its_exposed_fields() {
     let buffer = draw(&live_app_with("full"));
 
     let aatrox = player_row(&buffer, "Aatrox");
-    for token in ["Aatrox", "Lv13", "5/2/4", "CS212", "F+TP"] {
+    for token in ["Aatrox", "nivel 13", "5/2/4", "212 subditos"] {
         assert!(
             aatrox.contains(token),
             "Aatrox panel missing {token:?}: {aatrox}"
@@ -147,7 +142,7 @@ fn every_panel_shows_its_exposed_fields() {
     }
 
     let ahri = player_row(&buffer, "Ahri");
-    for token in ["Ahri", "Lv12", "6/1/7", "CS196", "F+I"] {
+    for token in ["Ahri", "nivel 12", "6/1/7", "196 subditos"] {
         assert!(ahri.contains(token), "Ahri panel missing {token:?}: {ahri}");
     }
 
@@ -171,20 +166,20 @@ fn dead_players_show_their_exposed_respawn_timer() {
     let buffer = draw(&live_app_with("full"));
     let lee_sin = player_row(&buffer, "Lee Sin");
     assert!(
-        lee_sin.contains("DEAD 12s"),
+        lee_sin.contains("Muerto 12"),
         "exposed timer as whole seconds: {lee_sin}"
     );
 
     let graves = player_row(&buffer, "Graves");
     assert!(
-        graves.contains("DEAD 34s"),
+        graves.contains("Muerto 34"),
         "exposed timer as whole seconds: {graves}"
     );
 
     // Alive players carry no death tag.
     let lulu = player_row(&buffer, "Lulu");
     assert!(
-        !lulu.contains("DEAD"),
+        !lulu.contains("Muerto"),
         "alive panel must not be marked dead: {lulu}"
     );
 }
@@ -193,7 +188,7 @@ fn dead_players_show_their_exposed_respawn_timer() {
 fn latest_snapshot_is_reflected_on_the_next_frame() {
     let mut app = live_app_with("full");
     let first = draw(&app);
-    assert!(player_row(&first, "Aatrox").contains("Lv13"));
+    assert!(player_row(&first, "Aatrox").contains("nivel 13"));
 
     // A fresh snapshot with changed data must win on the very next frame.
     let mut updated = snapshot_from_fixture("full");
@@ -203,7 +198,7 @@ fn latest_snapshot_is_reflected_on_the_next_frame() {
     let second = draw(&app);
     let aatrox = player_row(&second, "Aatrox");
     assert!(
-        aatrox.contains("Lv18"),
+        aatrox.contains("nivel 18"),
         "latest snapshot must render: {aatrox}"
     );
 }
@@ -218,7 +213,7 @@ fn partial_fields_degrade_explicitly_and_only_where_absent() {
     let buffer = draw(&live_app_with("partial_player"));
 
     let kaisa = player_row(&buffer, "Kai'Sa");
-    for token in ["Kai'Sa", "Lv11", "4/5/?", "CS?", "H+F"] {
+    for token in ["Kai'Sa", "nivel 11", "4/5/?", "? subditos"] {
         assert!(
             kaisa.contains(token),
             "degraded panel missing {token:?}: {kaisa}"
@@ -226,7 +221,7 @@ fn partial_fields_degrade_explicitly_and_only_where_absent() {
     }
     // She is alive: no death tag may be invented.
     assert!(
-        !kaisa.contains("DEAD"),
+        !kaisa.contains("Muerto"),
         "alive panel must not be marked dead: {kaisa}"
     );
 
@@ -241,7 +236,7 @@ fn partial_fields_degrade_explicitly_and_only_where_absent() {
     }
     let thresh = player_row(&buffer, "Thresh");
     assert!(
-        thresh.contains("SUP") && thresh.contains("Thresh"),
+        thresh.contains("Soporte") && thresh.contains("Thresh"),
         "intact identity survives: {thresh}"
     );
 }
@@ -250,12 +245,12 @@ fn partial_fields_degrade_explicitly_and_only_where_absent() {
 /// timer ABSENT it prints an unknown marker instead of any derived countdown.
 #[test]
 fn dead_player_without_exposed_timer_shows_unknown_marker_never_a_countdown() {
-    // Exposed value first: full.json Lee Sin, DEAD 12s (12.5 truncated).
+    // Exposed value first: full.json Lee Sin, Muerto 12 segundos (12.5 truncated).
     let buffer = draw(&live_app_with("full"));
     let exposed = player_row(&buffer, "Lee Sin");
-    let tag = &exposed[exposed.find("DEAD").expect("death tag")..];
+    let tag = &exposed[exposed.find("Muerto").expect("death tag")..];
     assert!(
-        tag.starts_with("DEAD 12s"),
+        tag.starts_with("Muerto 12"),
         "exposed timer as whole seconds: {tag}"
     );
 
@@ -276,16 +271,16 @@ fn dead_player_without_exposed_timer_shows_unknown_marker_never_a_countdown() {
     // …must yield an explicit unknown marker, never a computed number.
     let degraded = draw(&app);
     let row = player_row(&degraded, "Lee Sin");
-    let tag = &row[row.find("DEAD").expect("death tag")..];
+    let tag = &row[row.find("Muerto").expect("death tag")..];
     assert!(
-        tag.starts_with("DEAD ?"),
+        tag.starts_with("Muerto ?"),
         "unknown marker required, got: {tag}"
     );
 }
 
 // --- Task 4.4: local-player enhanced panel (ui spec R4/S1, R4/S2) ---
 
-/// The local strip is distinguished by its `LOCAL` label and carries the
+/// The local strip is distinguished by its `Tu` label and carries the
 /// exposed currentGold — here the spec scenario value 4350.
 #[test]
 fn local_gold_renders_on_the_local_strip() {
@@ -299,20 +294,17 @@ fn local_gold_renders_on_the_local_strip() {
 
     let buffer = draw(&app);
 
-    let strip_y = find_row(&buffer, "LOCAL").expect("LOCAL strip");
+    let strip_y = find_row(&buffer, "Tu").expect("local strip");
     let strip = row_text(&buffer, strip_y);
     assert!(strip.contains("Ahri"), "local champion identified: {strip}");
-    assert!(
-        strip.contains("Gold 4350"),
-        "exposed gold verbatim: {strip}"
-    );
+    assert!(strip.contains("oro 4350"), "exposed gold verbatim: {strip}");
 
     // Exclusivity: that gold value appears NOWHERE else in the frame.
     for y in 0..buffer.area.height {
         if y != strip_y {
             assert!(
-                !row_text(&buffer, y).contains("Gold"),
-                "gold token must stay on the LOCAL strip, found on row {y}"
+                !row_text(&buffer, y).contains("4350"),
+                "gold value must stay on the local strip, found on row {y}"
             );
         }
     }
@@ -332,16 +324,17 @@ fn missing_local_gold_degrades_and_no_enemy_panel_shows_gold() {
 
     let buffer = draw(&app);
 
-    let strip = player_row(&buffer, "LOCAL");
-    assert!(strip.contains("Gold ?"), "explicit placeholder: {strip}");
+    let strip_y = find_row(&buffer, "Tu").expect("local strip");
+    let strip = row_text(&buffer, strip_y);
+    assert!(strip.contains("oro ?"), "explicit placeholder: {strip}");
 
     for y in 0..buffer.area.height {
-        assert!(!row_text(&buffer, y).contains("Gold 4350"));
+        assert!(!row_text(&buffer, y).contains("oro 4350"));
         let text = row_text(&buffer, y);
-        if !text.contains("LOCAL") {
+        if !text.contains("Tu") && !text.trim_start().starts_with("oro") {
             assert!(
-                !text.contains("Gold"),
-                "no gold outside the LOCAL strip, row {y}: {text}"
+                !text.contains("oro"),
+                "no gold outside the local strip, row {y}: {text}"
             );
         }
     }
@@ -352,7 +345,13 @@ fn scoreboard_header_shows_mode_clock_and_team_kills() {
     let buffer = draw(&live_app_with("full"));
     let header = row_text(&buffer, 0);
     for token in [
-        "LIVE", "CLASSIC", "12:34", "ORDER 23", "20 CHAOS", "DRG 1", "HERALD 1",
+        "En partida",
+        "Clasica",
+        "12:34",
+        "Orden 23",
+        "20 Caos",
+        "1 dragon",
+        "1 heraldo",
     ] {
         assert!(
             header.contains(token),
@@ -360,7 +359,25 @@ fn scoreboard_header_shows_mode_clock_and_team_kills() {
         );
     }
     assert!(
-        !header.contains("Gold"),
+        !header.contains("oro") && !header.contains("Gold"),
         "gold must never appear on the header: {header}"
+    );
+}
+
+#[test]
+fn header_band_shows_decision_briefing_under_the_scoreboard() {
+    let buffer = draw(&live_app_with("full"));
+    let band: String = (0..4).map(|y| row_text(&buffer, y)).collect();
+    assert!(
+        band.contains("En partida") && band.contains("12:34"),
+        "scoreboard stays on the first header rows: {band}"
+    );
+    assert!(
+        band.contains("subditos") || band.contains("dragon") || band.contains("ventana"),
+        "briefing must cross live data into a decision: {band}"
+    );
+    assert!(
+        !band.contains("CS") && !band.contains("DRG") && !band.contains("KP"),
+        "briefing stays in full words: {band}"
     );
 }

@@ -35,6 +35,7 @@ fn ps(team: Option<Team>, creep_score: Option<f64>) -> PlayerSnapshot {
         deaths: None,
         assists: None,
         creep_score,
+        ward_score: None,
         items: None,
         spell_one: None,
         spell_two: None,
@@ -619,7 +620,7 @@ fn team_visualizations_stay_between_text_panels_and_status_row() {
     let height = buffer.area.height;
 
     let team_header_y = (0..height)
-        .find(|&y| row_text(&buffer, y).contains("Team ORDER"))
+        .find(|&y| row_text(&buffer, y).contains("Equipo Orden"))
         .expect("text panels must keep rendering");
 
     let ys: Vec<u16> = (0..height)

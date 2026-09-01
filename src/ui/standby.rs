@@ -8,7 +8,7 @@
 use ratatui::{Frame, widgets::Paragraph};
 
 /// Pinned silent standby message.
-pub(crate) const STANDBY_MESSAGE: &str = "Waiting for a live game...";
+pub(crate) const STANDBY_MESSAGE: &str = "Aun no hay una partida en curso.";
 
 /// Draws the full-frame standby view.
 pub(crate) fn render(frame: &mut Frame) {

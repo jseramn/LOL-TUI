@@ -42,7 +42,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{LineGauge, Paragraph, Sparkline};
 
 /// Cells reserved for the gold-trend row's label plus one separator.
-const GOLD_LABEL_CELLS: usize = "GOLD ".len();
+const GOLD_LABEL_CELLS: usize = "oro ".len();
 
 /// Real samples required before a chart may draw instead of the warm-up
 /// text (design D6: fewer than two reads as a flat line — spec-forbidden).
@@ -86,7 +86,7 @@ pub(super) fn render<I>(
     render_gauge(
         frame,
         hp_row,
-        "LOCAL HP",
+        "Vida",
         stats.and_then(|s| s.current_health),
         stats.and_then(|s| s.max_health),
     );
@@ -102,7 +102,7 @@ pub(super) fn render<I>(
     render_gauge(
         frame,
         power_row,
-        "LOCAL Power",
+        "Mana",
         stats.and_then(|s| s.power),
         stats.and_then(|s| s.power_max),
     );
@@ -134,7 +134,7 @@ where
     if real_samples < WARM_UP_MIN_REAL_SAMPLES {
         frame.render_widget(
             paragraph_of(&format!(
-                "GOLD warming up ({real_samples}/{})",
+                "oro calentando ({real_samples}/{})",
                 GoldHistory::CAPACITY
             )),
             row,
@@ -149,7 +149,7 @@ where
     let chart_width = row.width as usize - label_cells;
     let start = window.len().saturating_sub(chart_width);
     frame.render_widget(
-        paragraph_of("GOLD "),
+        paragraph_of("oro "),
         Rect {
             width: label_cells as u16,
             ..row

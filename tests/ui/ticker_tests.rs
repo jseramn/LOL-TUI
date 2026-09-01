@@ -74,9 +74,9 @@ fn ticker_lists_events_with_participants_and_exposed_times() {
         "EventTime 182.44 as clock: {first_blood}"
     );
 
-    let turret = require_row(&buffer, "torre");
+    let turret = require_row(&buffer, "ADCarryMain");
     assert!(
-        turret.contains("ADCarryMain"),
+        turret.contains("torre"),
         "participants as exposed: {turret}"
     );
     assert!(
@@ -94,7 +94,7 @@ fn ticker_lists_events_with_participants_and_exposed_times() {
 #[test]
 fn ticker_lists_newest_events_first() {
     let buffer = draw(&live_app_with("full"));
-    let ace_y = find_row(&buffer, "ace").expect("ace is the latest fixture event");
+    let ace_y = find_row(&buffer, "aniquilacion").expect("ace is the latest fixture event");
     let start_y = find_row(&buffer, "inicio").expect("game start still listed");
     assert!(
         ace_y < start_y,
@@ -108,8 +108,8 @@ fn ticker_lists_newest_events_first() {
 fn ticker_section_sits_below_the_local_strip() {
     let buffer = draw(&live_app_with("full"));
 
-    let local_y = find_row(&buffer, "LOCAL").expect("LOCAL strip");
-    let events_y = find_row(&buffer, "EVENTS").expect("EVENTS section header");
+    let local_y = find_row(&buffer, "Tu").expect("local strip");
+    let events_y = find_row(&buffer, "Sucesos").expect("Sucesos section header");
     assert!(events_y > local_y, "ticker belongs under the panels");
 
     let first_event_y = find_row(&buffer, "inicio").expect("game start listed");
@@ -127,7 +127,7 @@ fn ticker_section_sits_below_the_local_strip() {
 fn empty_event_list_shows_placeholder_instead_of_failing() {
     let buffer = draw(&live_app_with("empty_events"));
 
-    find_row(&buffer, "EVENTS").expect("section header still present");
+    find_row(&buffer, "Sucesos").expect("section header still present");
     let placeholder = require_row(&buffer, "sin eventos");
     assert!(
         !placeholder.contains(':') || placeholder.contains("sin eventos"),

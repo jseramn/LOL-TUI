@@ -12,7 +12,7 @@ use ratatui::Frame;
 use ratatui::layout::Rect;
 
 /// Section header introducing the ticker rows.
-pub(crate) const EVENTS_HEADER: &str = "EVENTS";
+pub(crate) const EVENTS_HEADER: &str = "Sucesos";
 
 /// Explicit empty-state for a snapshot with zero events (ui spec R5/S2).
 pub(crate) const EMPTY_EVENTS: &str = "sin eventos";
@@ -147,9 +147,19 @@ fn event_line(event: &GameEvent) -> String {
             line.push_str("inhibidor  ");
             push_opt(&mut line, killer.as_deref());
         }
+        GameEvent::HordeKill {
+            killer,
+            stolen,
+            time,
+        } => {
+            push_time(&mut line, *time);
+            line.push_str("gusarapos  ");
+            push_opt(&mut line, killer.as_deref());
+            push_stolen(&mut line, *stolen);
+        }
         GameEvent::Ace { acing_team, time } => {
             push_time(&mut line, *time);
-            line.push_str("ace  ");
+            line.push_str("aniquilacion  ");
             push_opt(&mut line, acing_team.as_deref());
         }
         GameEvent::GameEnd { result, time } => {

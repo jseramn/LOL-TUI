@@ -1,7 +1,8 @@
 //! Shared identity-line formatters for player panels and the local strip.
 //!
 //! Display rounding is presentation-only: the snapshot still holds the
-//! exposed f64. No countdowns are derived.
+//! exposed f64. No countdowns are derived. Visible copy uses full Spanish
+//! words — no role/stat acronyms.
 
 use crate::model::snapshot::{LocalPlayerSnapshot, PlayerSnapshot};
 
@@ -17,7 +18,7 @@ pub fn clock(seconds: f64) -> String {
     format!("{:02}:{:02}", total / 60, total % 60)
 }
 
-/// Whole number for gold / HP / CS / MS. Non-finite → absent.
+/// Whole number for gold / health / farm. Non-finite → absent.
 pub fn pretty_int(value: f64) -> String {
     if !value.is_finite() {
         return UNKNOWN.to_owned();
@@ -29,14 +30,67 @@ fn pretty_opt_f64(value: Option<f64>) -> String {
     value.map(pretty_int).unwrap_or_else(|| UNKNOWN.to_owned())
 }
 
-/// Local strip: `LOCAL {champ} Lv{n}  Gold {g}  HP a/b  mana a/b  QWER`
+/// Canonical role key used to pair the same lane on both teams.
+pub fn role_key(raw: Option<&str>) -> Option<&'static str> {
+    match raw?.trim().to_ascii_uppercase().as_str() {
+        "TOP" => Some("TOP"),
+        "JUNGLE" => Some("JUNGLE"),
+        "MIDDLE" | "MID" => Some("MIDDLE"),
+        "BOTTOM" | "BOT" | "ADC" => Some("BOTTOM"),
+        "UTILITY" | "SUPPORT" | "SUP" => Some("UTILITY"),
+        _ => None,
+    }
+}
+
+/// Lowercase Spanish role for sentences (`jungla`, `central`, …).
+pub fn role_name(raw: Option<&str>) -> Option<&'static str> {
+    match role_key(raw)? {
+        "TOP" => Some("superior"),
+        "JUNGLE" => Some("jungla"),
+        "MIDDLE" => Some("central"),
+        "BOTTOM" => Some("tirador"),
+        "UTILITY" => Some("soporte"),
+        _ => None,
+    }
+}
+
+/// Capitalized Spanish role for roster cards.
+pub fn role_label(raw: Option<&str>) -> Option<&'static str> {
+    match role_key(raw)? {
+        "TOP" => Some("Superior"),
+        "JUNGLE" => Some("Jungla"),
+        "MIDDLE" => Some("Central"),
+        "BOTTOM" => Some("Tirador"),
+        "UTILITY" => Some("Soporte"),
+        _ => None,
+    }
+}
+
+/// Queue / map mode in Spanish. Unknown values stay as the client sent them.
+pub fn game_mode_name(raw: &str) -> String {
+    match raw.trim().to_ascii_uppercase().as_str() {
+        "CLASSIC" => "Clasica".to_owned(),
+        "ARAM" => "Abismo".to_owned(),
+        "URF" => "Ultra rapido".to_owned(),
+        "ONEFORALL" => "Uno para todos".to_owned(),
+        "NEXUSBLITZ" => "Asalto al nexo".to_owned(),
+        "PRACTICETOOL" => "Herramienta de practica".to_owned(),
+        "TUTORIAL" => "Tutorial".to_owned(),
+        "CHERRY" => "Arena".to_owned(),
+        "SWIFTPLAY" => "Rapida".to_owned(),
+        _ => raw.to_owned(),
+    }
+}
+
+/// Local strip: `Tu {champ} nivel {n}  oro {g}  Vida a/b  mana a/b  QWER`
 ///
 /// Gold only here (ui spec R4). Integers so the line is readable in-game.
+/// Q/W/E/R are the ability keys on the keyboard, not stat acronyms.
 pub fn local_line(local: &LocalPlayerSnapshot) -> String {
-    let mut line = String::from("LOCAL");
+    let mut line = String::from("Tu");
     push_part(&mut line, local.champion.as_deref());
 
-    line.push_str(" Lv");
+    line.push_str("  nivel ");
     line.push_str(
         local
             .level
@@ -45,11 +99,11 @@ pub fn local_line(local: &LocalPlayerSnapshot) -> String {
             .unwrap_or(UNKNOWN),
     );
 
-    line.push_str("  Gold ");
+    line.push_str("  oro ");
     line.push_str(&pretty_opt_f64(local.current_gold));
 
     if let Some(stats) = &local.stats {
-        line.push_str("  HP ");
+        line.push_str("  Vida ");
         line.push_str(&pretty_opt_f64(stats.current_health));
         line.push('/');
         line.push_str(&pretty_opt_f64(stats.max_health));
@@ -80,23 +134,25 @@ fn push_rank(line: &mut String, letter: char, rank: Option<u32>) {
     }
 }
 
-/// TUI roster line. Tightens spacing and drops spells (never Lv/CS/DEAD)
-/// until the card fits the team column — 80×24 halves are ~40 cells.
+/// TUI roster line. Tightens spacing and drops combat score first so the
+/// death window still fits a ~40-cell team column.
 pub fn player_line_for_width(p: &PlayerSnapshot, column_width: u16) -> String {
     let max = column_width as usize;
     for line in [
-        player_card(p, true, true, true, "  "),
-        player_card(p, true, true, true, " "),
-        player_card(p, true, true, false, "  "),
-        player_card(p, true, true, false, " "),
-        player_card(p, false, true, false, " "),
-        player_card(p, false, false, false, " "),
+        player_card(p, true, true, true, true, true, "  "),
+        player_card(p, true, true, true, true, true, " "),
+        player_card(p, true, true, false, true, true, " "),
+        player_card(p, true, true, false, true, false, " "),
+        player_card(p, false, true, false, true, false, " "),
+        player_card(p, true, false, false, true, false, " "),
+        player_card(p, false, false, false, false, true, " "),
+        player_card(p, false, false, false, false, false, " "),
     ] {
         if max == 0 || line.chars().count() <= max {
             return line;
         }
     }
-    let fallback = player_card(p, false, false, false, " ");
+    let fallback = player_card(p, false, false, false, false, false, " ");
     if max == 0 {
         return fallback;
     }
@@ -111,22 +167,26 @@ pub fn pretty_secs(value: f64) -> String {
     format!("{}", value.trunc() as i64)
 }
 
-/// `TOP  Mundo  Lv6  1/0/0  CS42  F+H` plus `DEAD 12s` when dead.
+/// Full roster card in Spanish (dump / wide columns).
 pub fn player_line_compact(p: &PlayerSnapshot) -> String {
-    player_card(p, true, true, true, "  ")
+    player_card(p, true, true, true, true, true, "  ")
 }
 
 fn player_card(
     p: &PlayerSnapshot,
+    show_role: bool,
     show_level: bool,
+    show_kda: bool,
     show_cs: bool,
-    show_spells: bool,
+    long_death: bool,
     gap: &str,
 ) -> String {
-    let mut line = String::with_capacity(48);
-    if let Some(role) = compact_role(p.position.as_deref()) {
-        line.push_str(role);
-        line.push_str(gap);
+    let mut line = String::with_capacity(64);
+    if show_role {
+        if let Some(role) = role_label(p.position.as_deref()) {
+            line.push_str(role);
+            line.push_str(gap);
+        }
     }
     match p.champion.as_deref() {
         Some(champ) if !champ.is_empty() => line.push_str(champ),
@@ -135,54 +195,52 @@ fn player_card(
 
     if show_level {
         line.push_str(gap);
-        line.push_str("Lv");
+        line.push_str("nivel ");
         line.push_str(&num_marker(p.level));
     }
 
-    line.push_str(gap);
-    line.push_str(&num_marker(p.kills));
-    line.push('/');
-    line.push_str(&num_marker(p.deaths));
-    line.push('/');
-    line.push_str(&num_marker(p.assists));
+    if show_kda {
+        line.push_str(gap);
+        line.push_str(&num_marker(p.kills));
+        line.push('/');
+        line.push_str(&num_marker(p.deaths));
+        line.push('/');
+        line.push_str(&num_marker(p.assists));
+    }
 
     if show_cs {
         line.push_str(gap);
-        line.push_str("CS");
         line.push_str(&pretty_opt_f64(p.creep_score));
-    }
-
-    if show_spells {
-        let s1 = short_spell(p.spell_one.as_deref());
-        let s2 = short_spell(p.spell_two.as_deref());
-        if s1 != UNKNOWN || s2 != UNKNOWN {
-            line.push_str(gap);
-            line.push_str(s1);
-            line.push('+');
-            line.push_str(s2);
-        }
+        line.push_str(" subditos");
     }
 
     if p.is_dead == Some(true) {
         line.push_str(gap);
-        line.push_str("DEAD ");
+        line.push_str("Muerto");
         match p.respawn_timer {
             Some(timer) if timer.is_finite() => {
+                line.push(' ');
                 line.push_str(&pretty_secs(timer));
-                line.push('s');
+                if long_death {
+                    line.push_str(" segundos");
+                }
             }
-            _ => line.push_str(UNKNOWN),
+            _ => {
+                line.push(' ');
+                line.push_str(UNKNOWN);
+            }
         }
     }
     line
 }
 
-/// Dump / headless: same compact card, no item laundry list.
+/// Dump / headless: same full card, no item laundry list.
 pub fn player_line(p: &PlayerSnapshot) -> String {
     player_line_compact(p)
 }
 
-/// Flash/Heal/etc. → one letter so spells fit a 40-cell column.
+/// Flash/Heal/etc. → one letter. Kept for tests; roster cards no longer
+/// print summoner-spell abbreviations.
 pub fn short_spell(raw: Option<&str>) -> &'static str {
     let Some(raw) = raw else {
         return UNKNOWN;
@@ -210,17 +268,6 @@ pub fn short_spell(raw: Option<&str>) -> &'static str {
         "C"
     } else {
         UNKNOWN
-    }
-}
-
-fn compact_role(raw: Option<&str>) -> Option<&'static str> {
-    match raw?.trim().to_ascii_uppercase().as_str() {
-        "TOP" => Some("TOP"),
-        "JUNGLE" => Some("JGL"),
-        "MIDDLE" | "MID" => Some("MID"),
-        "BOTTOM" | "BOT" | "ADC" => Some("ADC"),
-        "UTILITY" | "SUPPORT" | "SUP" => Some("SUP"),
-        _ => None,
     }
 }
 

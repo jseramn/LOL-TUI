@@ -4,6 +4,15 @@ use tui_lol::model::snapshot::{LocalPlayerSnapshot, PlayerSnapshot};
 use tui_lol::ui::format;
 
 #[test]
+fn role_helpers_use_spanish_words() {
+    assert_eq!(format::role_key(Some("JUNGLE")), Some("JUNGLE"));
+    assert_eq!(format::role_name(Some("JUNGLE")), Some("jungla"));
+    assert_eq!(format::role_label(Some("UTILITY")), Some("Soporte"));
+    assert_eq!(format::game_mode_name("CLASSIC"), "Clasica");
+    assert_eq!(format::game_mode_name("ARAM"), "Abismo");
+}
+
+#[test]
 fn clock_renders_mm_ss_from_exposed_seconds() {
     assert_eq!(format::clock(0.046), "00:00");
     assert_eq!(format::clock(15.023), "00:15");
@@ -24,7 +33,7 @@ fn pretty_int_rounds_and_pretty_secs_truncates() {
 fn short_spell_maps_english_and_spanish_names() {
     assert_eq!(format::short_spell(Some("SummonerFlash")), "F");
     assert_eq!(format::short_spell(Some("Destello")), "F");
-    assert_eq!(format::short_spell(Some("Curación")), "H");
+    assert_eq!(format::short_spell(Some("Curacion")), "H");
     assert_eq!(format::short_spell(Some("SummonerDot")), "I");
     assert_eq!(format::short_spell(Some("SummonerTeleport")), "TP");
     assert_eq!(format::short_spell(Some("Castigo")), "D");
@@ -43,6 +52,7 @@ fn compact_player_line_skips_item_laundry_lists() {
         deaths: Some(2),
         assists: Some(4),
         creep_score: Some(212.0),
+        ward_score: Some(0.31),
         items: Some(vec![]),
         spell_one: Some("SummonerFlash".into()),
         spell_two: Some("SummonerTeleport".into()),
@@ -50,7 +60,7 @@ fn compact_player_line_skips_item_laundry_lists() {
         respawn_timer: Some(0.0),
     };
     let line = format::player_line(&player);
-    assert_eq!(line, "TOP  Aatrox  Lv13  5/2/4  CS212  F+TP");
+    assert_eq!(line, "Superior  Aatrox  nivel 13  5/2/4  212 subditos");
     assert!(!line.contains("Items"));
     assert!(!line.contains("TopLaneTitan"));
 }
@@ -67,6 +77,7 @@ fn narrow_column_keeps_the_dead_tag() {
         deaths: Some(3),
         assists: Some(9),
         creep_score: Some(168.0),
+        ward_score: Some(0.87),
         items: None,
         spell_one: Some("SummonerFlash".into()),
         spell_two: Some("SummonerSmite".into()),
@@ -74,8 +85,9 @@ fn narrow_column_keeps_the_dead_tag() {
         respawn_timer: Some(12.5),
     };
     let wide = format::player_line(&player);
-    assert!(wide.contains("DEAD 12s"), "full card: {wide}");
-    assert!(wide.contains("F+D"));
+    assert!(wide.contains("Muerto 12 segundos"), "full card: {wide}");
+    assert!(!wide.contains("F+D"));
+    assert!(!wide.contains("DEAD"));
 
     let narrow = format::player_line_for_width(&player, 40);
     assert!(
@@ -83,13 +95,13 @@ fn narrow_column_keeps_the_dead_tag() {
         "must fit a 80x24 team half: {narrow}"
     );
     assert!(
-        narrow.contains("DEAD 12s"),
+        narrow.contains("Muerto 12"),
         "death tag must not clip: {narrow}"
     );
     assert!(narrow.contains("Lee Sin"));
     assert!(
-        narrow.contains("Lv") && narrow.contains("CS"),
-        "canonical column still shows level and CS: {narrow}"
+        narrow.contains("nivel") && narrow.contains("subditos"),
+        "canonical column still shows level and farm: {narrow}"
     );
 }
 
@@ -103,7 +115,7 @@ fn local_line_uses_integer_gold_and_the_gold_token() {
         abilities: None,
     };
     let line = format::local_line(&local);
-    assert!(line.starts_with("LOCAL Ahri Lv12"));
-    assert!(line.contains("Gold 4350"));
+    assert!(line.starts_with("Tu Ahri  nivel 12"));
+    assert!(line.contains("oro 4350"));
     assert!(!line.contains("4350.0"));
 }

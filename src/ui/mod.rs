@@ -31,56 +31,67 @@ use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::text::{Line, Text};
 use ratatui::widgets::Paragraph;
 
-/// Vertical constraint tuple of the live view's four upper regions (design
-/// D2): one headline row, at least five body rows for the team columns, a
-/// four-row local strip (legacy text line + two blocked-segment gauges +
-/// the gold-trend row the sparkline fills in task 4.7), and a compressible
-/// ticker band. The fifth D2 constraint — `Length(1)` status, LAST — is
-/// enforced by reserving that row before the solver runs; see
-/// [`split_regions`].
-const REGION_CONSTRAINTS: [Constraint; 4] = [
-    Constraint::Length(1),
-    Constraint::Min(5),
-    Constraint::Length(4),
-    Constraint::Min(1),
-];
+/// Scoreboard-only header when the frame cannot host the briefing.
+const SCORE_HEADER_HEIGHT: u16 = 1;
+/// Scoreboard + three decision sentences (overlays keep 3–4 live cues).
+const INTEL_HEADER_HEIGHT: u16 = 4;
 
-/// Smallest height the D2 tuple can satisfy exactly: 1 + 5 + 4 + 1.
+/// Smallest height the default tuple can satisfy exactly: 1 + 5 + 4 + 1.
 const MIN_REGIONS_HEIGHT: u16 = 11;
 
 /// Body rows required for the team header plus five identity+viz player cards
 /// (live-dashboard-ui R3: all 10 panels at the canonical 80×24 anchor).
 const FULL_ROSTER_BODY_HEIGHT: u16 = 11;
 
-/// Local band when the body is pinned: legacy text + HP + Power (sparkline
+/// Local band when the body is pinned: legacy text + health + power (sparkline
 /// clips; gold may hide at the canonical viewport per viz degradation).
 const PINNED_LOCAL_HEIGHT: u16 = 3;
 
-/// Rest height (frame minus status) that can host the pinned body/local pair.
-const PINNED_REST_MIN: u16 = 1 + FULL_ROSTER_BODY_HEIGHT + PINNED_LOCAL_HEIGHT + 1;
+fn pinned_rest_min(header: u16) -> u16 {
+    header + FULL_ROSTER_BODY_HEIGHT + PINNED_LOCAL_HEIGHT + 1
+}
+
+fn header_rows(rest_height: u16) -> u16 {
+    if rest_height >= pinned_rest_min(INTEL_HEADER_HEIGHT) {
+        INTEL_HEADER_HEIGHT
+    } else {
+        SCORE_HEADER_HEIGHT
+    }
+}
+
+fn default_region_constraints(header: u16) -> [Constraint; 4] {
+    [
+        Constraint::Length(header),
+        Constraint::Min(5),
+        Constraint::Length(4),
+        Constraint::Min(1),
+    ]
+}
 
 /// Picks vertical region constraints for `rest` (the frame minus the
-/// reserved status row). When the default D2 tuple would leave the body
+/// reserved status row). When the default tuple would leave the body
 /// shorter than [`FULL_ROSTER_BODY_HEIGHT`], pin the body to eleven rows
-/// and shrink the local band to [`PINNED_LOCAL_HEIGHT`] so ORDER and CHAOS
-/// each host five identity+viz cards without dropping the notice, LOCAL
-/// gauges, or EVENTS ticker.
+/// and shrink the local band to [`PINNED_LOCAL_HEIGHT`] so Orden and Caos
+/// each host five identity+viz cards without dropping the notice, local
+/// gauges, or the sucesos ticker.
 fn region_constraints(rest_height: u16) -> [Constraint; 4] {
-    if rest_height < PINNED_REST_MIN {
-        return REGION_CONSTRAINTS;
+    let header = header_rows(rest_height);
+    if rest_height < pinned_rest_min(header) {
+        return default_region_constraints(header);
     }
-    let default_body =
-        Layout::vertical(REGION_CONSTRAINTS).split(Rect::new(0, 0, 1, rest_height))[1].height;
-    if default_body < FULL_ROSTER_BODY_HEIGHT {
-        [
-            Constraint::Length(1),
-            Constraint::Length(FULL_ROSTER_BODY_HEIGHT),
-            Constraint::Length(PINNED_LOCAL_HEIGHT),
-            Constraint::Min(1),
-        ]
+    // Height 24 (rest 23) keeps a three-row local band so the sparkline
+    // stays clipped; height 28 (rest 27) restores the gold-trend row.
+    let local = if rest_height >= 27 {
+        4
     } else {
-        REGION_CONSTRAINTS
-    }
+        PINNED_LOCAL_HEIGHT
+    };
+    [
+        Constraint::Length(header),
+        Constraint::Length(FULL_ROSTER_BODY_HEIGHT),
+        Constraint::Length(local),
+        Constraint::Min(1),
+    ]
 }
 
 /// The live view's disjoint vertical bands, top-to-bottom. `status` is

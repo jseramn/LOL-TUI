@@ -4,14 +4,16 @@
 
 use crate::model::snapshot::{Snapshot, Team};
 use crate::ui::format::{local_line, player_line};
-use crate::ui::scoreboard::{header_line, team_title};
+use crate::ui::scoreboard::{header_band, team_title};
 use crate::ui::ticker;
 
 /// Multi-line text dump of one live snapshot.
 pub fn dump_snapshot(snapshot: &Snapshot) -> String {
     let mut out = String::new();
-    out.push_str(&header_line(snapshot));
-    out.push('\n');
+    for line in header_band(snapshot) {
+        out.push_str(&line);
+        out.push('\n');
+    }
     for team in [Team::Order, Team::Chaos] {
         out.push_str(&team_title(team, snapshot));
         out.push('\n');
@@ -21,7 +23,7 @@ pub fn dump_snapshot(snapshot: &Snapshot) -> String {
             .filter(|p| p.team == Some(team))
             .collect();
         if members.is_empty() {
-            out.push_str("  (no players)\n");
+            out.push_str("  (sin jugadores)\n");
             continue;
         }
         for player in members {

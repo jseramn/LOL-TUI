@@ -10,7 +10,7 @@
 //! snapshot value verbatim — nothing is derived or counted down locally.
 
 use super::format::local_line;
-use super::scoreboard::header_line;
+use super::scoreboard::header_band;
 use super::{LiveLayout, draw_lines};
 use crate::api::poller::Clock;
 use crate::app::App;
@@ -28,7 +28,7 @@ pub use super::format::UNKNOWN;
 /// draws — never a panic, whatever the frame size.
 pub(crate) fn render<C: Clock>(frame: &mut Frame, app: &App<C>, layout: &LiveLayout) {
     let Some(snapshot) = app.snapshot() else {
-        draw_lines(frame, layout.areas.header, &["LIVE".to_owned()]);
+        draw_lines(frame, layout.areas.header, &["En partida".to_owned()]);
         return;
     };
     draw_snapshot(snapshot, app.gold_window(), layout, frame);
@@ -43,7 +43,16 @@ fn draw_snapshot<G>(
     G: Iterator<Item = Option<u64>>,
 {
     let regions = &layout.areas;
-    draw_lines(frame, regions.header, &[header_line(snapshot)]);
+    let width = regions.header.width as usize;
+    let mut headline = header_band(snapshot);
+    if width > 0 {
+        for line in &mut headline {
+            if line.chars().count() > width {
+                *line = line.chars().take(width).collect();
+            }
+        }
+    }
+    draw_lines(frame, regions.header, &headline);
 
     super::team::render(frame, snapshot, layout.columns, layout.visible);
 

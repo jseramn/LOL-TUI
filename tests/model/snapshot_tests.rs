@@ -39,6 +39,7 @@ fn snapshot_normalizes_full_fixture() {
     assert_eq!(ahri.deaths, Some(1));
     assert_eq!(ahri.assists, Some(7));
     assert_eq!(ahri.creep_score, Some(195.5));
+    assert_eq!(ahri.ward_score, Some(0.42));
     let items = ahri.items.as_ref().expect("items normalized");
     assert_eq!(items.len(), 7);
     assert_eq!(items[0].item_id, Some(3020));
@@ -79,8 +80,9 @@ fn snapshot_normalizes_full_fixture() {
     assert_eq!(ranks.r, Some(1));
 
     let dumped = tui_lol::dump::dump_snapshot(&snap);
-    assert!(dumped.contains("LIVE  12:34  CLASSIC"));
-    assert!(dumped.contains("ORDER 23 - 20 CHAOS"));
+    assert!(dumped.contains("En partida  12:34  Clasica"));
+    assert!(dumped.contains("Orden 23 - 20 Caos"));
+    assert!(dumped.contains("subditos"));
     assert!(dumped.contains("Aatrox"));
     assert!(dumped.contains("Q4 W2 E3 R1"));
 

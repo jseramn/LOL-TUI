@@ -30,6 +30,7 @@ fn player(name: &str) -> PlayerSnapshot {
         deaths: None,
         assists: None,
         creep_score: None,
+        ward_score: None,
         items: None,
         spell_one: None,
         spell_two: None,

@@ -7,7 +7,7 @@ Dashboard de terminal para una partida **en curso** de League of Legends (Live C
 PowerShell, **ya en partida** (no lobby). Desde cualquier carpeta:
 
 ```powershell
-cd E:\dev\TUI-LOL\LOL-TUI; git checkout cursor/live-visual-terminal-7f59; git pull; powershell -ExecutionPolicy Bypass -File scripts\run-live.ps1
+cd E:\dev\TUI-LOL\LOL-TUI; git checkout main; git pull; powershell -ExecutionPolicy Bypass -File scripts\run-live.ps1
 ```
 
 Salir: **`q`** o **`Esc`**. Sin LoL: añade `-Replay` al archivo (`scripts\run-live.ps1 -Replay`).
@@ -39,15 +39,15 @@ Pega al agente la línea `TUI_LOL_LIVE_URL=https://....trycloudflare.com`. **Nun
 - **Windows Terminal** recomendado (también funciona en conhost clásico).
 
 > El puerto `https://127.0.0.1:2999` solo responde **durante la partida**.  
-> El oro solo aparece en la franja **LOCAL** (tu jugador); el resto de paneles no muestran oro.  
-> Reloj `mm:ss`, números enteros, cartas compactas (rol + campeón + KDA + hechizos cortos) y eventos en español, los más recientes arriba.
+> El oro solo aparece en tu franja (la línea que empieza por **Tú**); el resto de paneles no muestran oro.  
+> Cabecera con reloj `mm:ss` y un briefing de hasta tres frases: brecha de carril, control de objetivos y ventana si alguien está muerto. Cartas en español (rol, nivel, súbditos) y sucesos recientes arriba. Sin acrónimos de estadísticas.
 
-## Clonar y usar esta rama
+## Clonar y usar main
 
 ```powershell
 git clone https://github.com/jseramn/LOL-TUI.git
 cd LOL-TUI
-git checkout cursor/live-visual-terminal-7f59
+git checkout main
 ```
 
 ## En vivo (tu PC)
@@ -75,7 +75,7 @@ $env:RUSTUP_HOME='E:\rust\rustup'
 $env:Path='E:\w64devkit\w64devkit\bin;E:\rust\rustup\toolchains\stable-x86_64-pc-windows-gnu\lib\rustlib\x86_64-pc-windows-gnu\bin\self-contained;E:\rust\cargo\bin;'+$env:Path
 $env:RUSTFLAGS='-Clink-self-contained=yes'
 cd E:\dev\TUI-LOL\LOL-TUI
-git checkout cursor/live-visual-terminal-7f59
+git checkout main
 git pull
 cargo run -j 1
 ```

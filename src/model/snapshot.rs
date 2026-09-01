@@ -46,6 +46,8 @@ pub struct PlayerSnapshot {
     pub deaths: Option<u32>,
     pub assists: Option<u32>,
     pub creep_score: Option<f64>,
+    /// Exposed vision score (`wardScore`). Never derived.
+    pub ward_score: Option<f64>,
     /// Inventory as exposed; `None` when the key was absent.
     pub items: Option<Vec<ItemSnapshot>>,
     /// Summoner spell display names as exposed (internal ids such as
@@ -156,6 +158,11 @@ pub enum GameEvent {
         killer: Option<String>,
         time: Option<f64>,
     },
+    HordeKill {
+        killer: Option<String>,
+        stolen: Option<bool>,
+        time: Option<f64>,
+    },
     Ace {
         acing_team: Option<String>,
         time: Option<f64>,
@@ -186,6 +193,7 @@ impl GameEvent {
             | GameEvent::HeraldKill { time, .. }
             | GameEvent::BaronKill { time, .. }
             | GameEvent::InhibKilled { time, .. }
+            | GameEvent::HordeKill { time, .. }
             | GameEvent::Ace { time, .. }
             | GameEvent::GameEnd { time, .. }
             | GameEvent::Other { time, .. } => *time,
@@ -239,6 +247,11 @@ impl From<&RawEvent> for GameEvent {
             },
             Some("InhibKilled") => GameEvent::InhibKilled {
                 killer: str_field(&raw.extra, "KillerName"),
+                time,
+            },
+            Some("HordeKill") => GameEvent::HordeKill {
+                killer: str_field(&raw.extra, "KillerName"),
+                stolen: bool_field(&raw.extra, "Stolen"),
                 time,
             },
             Some("Ace") => GameEvent::Ace {
@@ -351,6 +364,7 @@ impl PlayerSnapshot {
             deaths: scores.and_then(|s| s.deaths),
             assists: scores.and_then(|s| s.assists),
             creep_score: scores.and_then(|s| s.creep_score),
+            ward_score: scores.and_then(|s| s.ward_score),
             items: p.items.as_ref().map(|items| {
                 items
                     .iter()

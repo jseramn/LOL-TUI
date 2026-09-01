@@ -11,5 +11,6 @@ pub mod dump;
 pub mod events;
 pub mod glyphs;
 pub mod history;
+pub mod intel;
 pub mod model;
 pub mod ui;

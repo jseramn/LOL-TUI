@@ -383,19 +383,19 @@ fn sparkline_hides_at_23_rows_and_returns_when_local_band_has_room() {
 
     let short = draw_at(&app, 80, 23);
     assert!(
-        !any_row_contains(&short, "GOLD warming up"),
+        !any_row_contains(&short, "oro calentando"),
         "23 rows hide the sparkline tier; no warm-up text may render"
     );
 
     let canonical = draw_at(&app, 80, 24);
     assert!(
-        !any_row_contains(&canonical, "GOLD warming up"),
+        !any_row_contains(&canonical, "oro calentando"),
         "24 rows pin the local band to three rows (HP + Power only); sparkline clips"
     );
 
     let full = draw_at(&app, 80, 28);
     assert!(
-        any_row_contains(&full, "GOLD warming up"),
+        any_row_contains(&full, "oro calentando"),
         "28 rows restore the four-row local band; warm-up text must render"
     );
 }
@@ -409,13 +409,13 @@ fn gauges_render_even_when_every_chart_tier_is_hidden() {
 
     let minimum = draw_at(&app, 80, 12);
     assert!(
-        any_row_contains(&minimum, "LOCAL HP"),
+        any_row_contains(&minimum, "Vida"),
         "gauge must stay on at the minimum viewport"
     );
 
     let narrow = draw_at(&app, 39, 12);
     assert!(
-        any_row_contains(&narrow, "LOCAL HP"),
+        any_row_contains(&narrow, "Vida"),
         "gauge must stay on regardless of the chart width floor"
     );
 }

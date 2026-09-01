@@ -49,7 +49,7 @@ fn startup_outside_a_game_shows_silent_standby() {
     let app = App::with_clock(FixedClock { millis: 0 });
     let buffer = draw(&app);
 
-    let y = find_row(&buffer, "Waiting for a live game").expect("standby message");
+    let y = find_row(&buffer, "Aun no hay una partida en curso").expect("standby message");
     assert_eq!(y, 0, "standby message leads the view");
 
     for scan in 0..buffer.area.height {
@@ -73,20 +73,23 @@ fn mid_game_disconnect_falls_back_to_standby() {
     app.on_msg(PollMsg::Lifecycle(Lifecycle::InGame));
     app.on_msg(PollMsg::Snapshot(Box::new(snapshot_from_fixture("full"))));
     let live = draw(&app);
-    assert!(find_row(&live, "Team ORDER").is_some(), "live view was up");
+    assert!(
+        find_row(&live, "Equipo Orden").is_some(),
+        "live view was up"
+    );
 
     app.on_msg(PollMsg::Lifecycle(Lifecycle::NotInGame));
     let standby = draw(&app);
 
     assert!(
-        find_row(&standby, "Waiting for a live game").is_some(),
+        find_row(&standby, "Aun no hay una partida en curso").is_some(),
         "standby view restored"
     );
     assert!(
-        find_row(&standby, "Team ORDER").is_none(),
+        find_row(&standby, "Equipo Orden").is_none(),
         "no live panels linger"
     );
-    assert!(find_row(&standby, "EVENTS").is_none(), "no ticker lingers");
+    assert!(find_row(&standby, "Sucesos").is_none(), "no ticker lingers");
 }
 
 /// R2/S3: reconnecting (NOT_IN_GAME → IN_GAME with a fresh snapshot)
@@ -100,6 +103,9 @@ fn reconnect_returns_to_the_live_view_on_the_next_frame() {
     app.on_msg(PollMsg::Snapshot(Box::new(snapshot_from_fixture("full"))));
 
     let live = draw(&app);
-    assert!(find_row(&live, "LIVE").is_some(), "live headline back");
-    assert!(find_row(&live, "Team ORDER").is_some(), "panels restored");
+    assert!(
+        find_row(&live, "En partida").is_some(),
+        "live headline back"
+    );
+    assert!(find_row(&live, "Equipo Orden").is_some(), "panels restored");
 }

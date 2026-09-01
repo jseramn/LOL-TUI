@@ -89,7 +89,7 @@ fn shrunk_standby_view_keeps_its_text_inside_the_visible_area() {
     let buffer = frame.buffer;
 
     let headline = row_text(buffer, 0).trim_end().to_owned();
-    assert_eq!(headline, "Waiting for a live game...");
+    assert_eq!(headline, "Aun no hay una partida en curso.");
     assert!(
         headline.chars().count() <= usize::from(buffer.area.width),
         "text must not exceed the shrunken width"
@@ -105,13 +105,13 @@ fn extreme_small_viewport_still_renders_both_phases_without_panics() {
     let frame = terminal
         .draw(|f| ui::render(f, &standby))
         .expect("tiny standby frame");
-    assert_eq!(row_text(frame.buffer, 0).chars().next(), Some('W'));
+    assert_eq!(row_text(frame.buffer, 0).chars().next(), Some('A'));
 
     let live = live_app();
     let frame = terminal
         .draw(|f| ui::render(f, &live))
         .expect("tiny live frame");
-    assert_eq!(row_text(frame.buffer, 0).chars().next(), Some('L'));
+    assert_eq!(row_text(frame.buffer, 0).chars().next(), Some('E'));
 }
 
 // --- Task 3.1 / viz spec R2: region-based layout preserving R6 ---
@@ -129,12 +129,12 @@ fn minimum_viewport_keeps_regions_ordered_above_an_intact_status_row_80x12() {
     let app = live_app_with_snapshot("full");
     let buffer = draw_at(&app, 80, 12);
 
-    let live_y = find_row(&buffer, "LIVE").expect("header region must render");
+    let live_y = find_row(&buffer, "En partida").expect("header region must render");
     assert_eq!(live_y, 0, "header owns the first row");
 
-    let order_y = find_row(&buffer, "Team ORDER").expect("ORDER column header visible");
-    let local_y = find_row(&buffer, "LOCAL").expect("LOCAL strip visible at 80x12");
-    let events_y = find_row(&buffer, "EVENTS").expect("ticker section visible at 80x12");
+    let order_y = find_row(&buffer, "Equipo Orden").expect("Orden column header visible");
+    let local_y = find_row(&buffer, "Tu").expect("local strip visible at 80x12");
+    let events_y = find_row(&buffer, "Sucesos").expect("ticker section visible at 80x12");
 
     assert!(order_y < local_y, "LOCAL strip sits below the team columns");
     assert!(local_y < events_y, "ticker sits below the local strip");
@@ -154,11 +154,11 @@ fn canonical_region_order_at_80x24_with_notice_filling_final_row() {
     let app = live_app_with_snapshot("full");
     let buffer = draw_at(&app, 80, 24);
 
-    let live_y = find_row(&buffer, "LIVE").expect("header");
-    let order_y = find_row(&buffer, "Team ORDER").expect("ORDER header");
-    let chaos_y = find_row(&buffer, "Team CHAOS").expect("CHAOS header");
-    let local_y = find_row(&buffer, "LOCAL").expect("LOCAL strip");
-    let events_y = find_row(&buffer, "EVENTS").expect("EVENTS header");
+    let live_y = find_row(&buffer, "En partida").expect("header");
+    let order_y = find_row(&buffer, "Equipo Orden").expect("Orden header");
+    let chaos_y = find_row(&buffer, "Equipo Caos").expect("Caos header");
+    let local_y = find_row(&buffer, "Tu").expect("local strip");
+    let events_y = find_row(&buffer, "Sucesos").expect("Sucesos header");
 
     assert_eq!(live_y, 0, "header first");
     assert_eq!(
@@ -182,7 +182,7 @@ fn canonical_region_order_at_80x24_with_notice_filling_final_row() {
 fn canonical_80x24_renders_all_five_players_per_team() {
     let app = live_app_with_snapshot("full");
     let buffer = draw_at(&app, 80, 24);
-    let events_y = find_row(&buffer, "EVENTS").unwrap_or(buffer.area.height);
+    let events_y = find_row(&buffer, "Sucesos").unwrap_or(buffer.area.height);
     let layout = tui_lol::ui::select_layout(Rect::new(0, 0, 80, 24));
     let mid = buffer.area.width / 2;
 
@@ -191,7 +191,7 @@ fn canonical_80x24_renders_all_five_players_per_team() {
         "canonical viewport pins body to eleven rows for five 2-row cards"
     );
 
-    for (label, champ) in [("SUP", "Lulu"), ("SUP", "Thresh")] {
+    for (label, champ) in [("Soporte", "Lulu"), ("Soporte", "Thresh")] {
         let rows = (0..events_y)
             .filter(|&y| {
                 let left = row_text(&buffer, y);
@@ -207,7 +207,7 @@ fn canonical_80x24_renders_all_five_players_per_team() {
             1,
             "support {label} {champ} must appear once in team columns at 80x24: {rows:?}"
         );
-        assert!(rows[0] < events_y, "support row must sit above EVENTS");
+        assert!(rows[0] < events_y, "support row must sit above Sucesos");
     }
 
     let viz_rows = (layout.areas.body.y..layout.areas.body.bottom())
@@ -235,13 +235,14 @@ fn canonical_80x24_identity_lines_fit_team_columns() {
             .to_owned()
     };
 
-    for y in 2..12 {
+    let layout = tui_lol::ui::select_layout(Rect::new(0, 0, 80, 24));
+    for y in layout.areas.body.y..layout.areas.body.bottom() {
         let left = segment(y, 0, mid);
         let right = segment(y, mid, buffer.area.width);
         if left.starts_with("Lv") || right.starts_with("Lv") {
             continue;
         }
-        if left.contains("Team ") || right.contains("Team ") {
+        if left.contains("Equipo ") || right.contains("Equipo ") {
             continue;
         }
         if left.is_empty() && right.is_empty() {
@@ -249,19 +250,19 @@ fn canonical_80x24_identity_lines_fit_team_columns() {
         }
         assert!(
             left.chars().count() <= usize::from(mid),
-            "ORDER identity must fit its column on row {y}: {left:?}"
+            "Orden identity must fit its column on row {y}: {left:?}"
         );
         assert!(
             right.chars().count() <= usize::from(buffer.area.width - mid),
-            "CHAOS identity must fit its column on row {y}: {right:?}"
+            "Caos identity must fit its column on row {y}: {right:?}"
         );
         assert!(
-            left.contains("Lv") && left.contains("CS"),
-            "compact ORDER identity on row {y}: {left:?}"
+            left.contains("nivel") && left.contains("subditos"),
+            "compact Orden identity on row {y}: {left:?}"
         );
         assert!(
-            right.contains("Lv") && right.contains("CS"),
-            "compact CHAOS identity on row {y}: {right:?}"
+            right.contains("nivel") && right.contains("subditos"),
+            "compact Caos identity on row {y}: {right:?}"
         );
     }
 }
