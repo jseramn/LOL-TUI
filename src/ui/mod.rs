@@ -16,7 +16,9 @@
 //! rect containing the status row.
 
 pub mod dashboard;
+pub mod format;
 pub mod local_strip;
+pub mod scoreboard;
 pub mod standby;
 pub mod status;
 pub mod team;
@@ -45,6 +47,41 @@ const REGION_CONSTRAINTS: [Constraint; 4] = [
 
 /// Smallest height the D2 tuple can satisfy exactly: 1 + 5 + 4 + 1.
 const MIN_REGIONS_HEIGHT: u16 = 11;
+
+/// Body rows required for the team header plus five identity+viz player cards
+/// (live-dashboard-ui R3: all 10 panels at the canonical 80×24 anchor).
+const FULL_ROSTER_BODY_HEIGHT: u16 = 11;
+
+/// Local band when the body is pinned: legacy text + HP + Power (sparkline
+/// clips; gold may hide at the canonical viewport per viz degradation).
+const PINNED_LOCAL_HEIGHT: u16 = 3;
+
+/// Rest height (frame minus status) that can host the pinned body/local pair.
+const PINNED_REST_MIN: u16 = 1 + FULL_ROSTER_BODY_HEIGHT + PINNED_LOCAL_HEIGHT + 1;
+
+/// Picks vertical region constraints for `rest` (the frame minus the
+/// reserved status row). When the default D2 tuple would leave the body
+/// shorter than [`FULL_ROSTER_BODY_HEIGHT`], pin the body to eleven rows
+/// and shrink the local band to [`PINNED_LOCAL_HEIGHT`] so ORDER and CHAOS
+/// each host five identity+viz cards without dropping the notice, LOCAL
+/// gauges, or EVENTS ticker.
+fn region_constraints(rest_height: u16) -> [Constraint; 4] {
+    if rest_height < PINNED_REST_MIN {
+        return REGION_CONSTRAINTS;
+    }
+    let default_body =
+        Layout::vertical(REGION_CONSTRAINTS).split(Rect::new(0, 0, 1, rest_height))[1].height;
+    if default_body < FULL_ROSTER_BODY_HEIGHT {
+        [
+            Constraint::Length(1),
+            Constraint::Length(FULL_ROSTER_BODY_HEIGHT),
+            Constraint::Length(PINNED_LOCAL_HEIGHT),
+            Constraint::Min(1),
+        ]
+    } else {
+        REGION_CONSTRAINTS
+    }
+}
 
 /// The live view's disjoint vertical bands, top-to-bottom. `status` is
 /// always the frame's final row; the other four never intersect it or each
@@ -162,6 +199,12 @@ pub fn select_layout(area: Rect) -> LiveLayout {
         visible = ChartSet::NONE;
     }
     let areas = split_regions(area);
+    // The gold row needs a third widget row below HP + Power. When the
+    // canonical viewport pins the local band to three rows, the sparkline
+    // clips even though the height tier would otherwise keep it visible.
+    if areas.local.height < 4 {
+        visible.sparkline = false;
+    }
     LiveLayout {
         columns: split_team_columns(areas.body),
         areas,
@@ -223,7 +266,7 @@ pub(crate) fn split_regions(area: Rect) -> Regions {
         height: area.height.saturating_sub(1),
     };
     if rest.height >= MIN_REGIONS_HEIGHT {
-        let rects = Layout::vertical(REGION_CONSTRAINTS).split(rest);
+        let rects = Layout::vertical(region_constraints(rest.height)).split(rest);
         return Regions {
             header: rects[0],
             body: rects[1],

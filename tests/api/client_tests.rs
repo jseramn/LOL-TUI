@@ -192,3 +192,41 @@ fn odd_statuses_are_transient_http() {
         );
     }
 }
+
+#[test]
+fn remote_https_base_constructs_and_appends_the_live_path() {
+    let client = ApiClient::remote("https://example.trycloudflare.com")
+        .expect("https tunnel URL must construct");
+    assert!(client.is_remote());
+    assert_eq!(
+        client.url(ENDPOINT_ALL_GAME_DATA),
+        "https://example.trycloudflare.com/liveclientdata/allgamedata"
+    );
+}
+
+#[test]
+fn remote_base_strips_trailing_slash() {
+    let client =
+        ApiClient::remote("https://abc.trycloudflare.com/").expect("trailing slash is tolerated");
+    assert_eq!(
+        client.url("/identity"),
+        "https://abc.trycloudflare.com/identity"
+    );
+}
+
+#[test]
+fn remote_rejects_non_http_schemes() {
+    let err = ApiClient::remote("ftp://127.0.0.1:2999").expect_err("ftp is not a live URL");
+    assert!(
+        matches!(err, BuildError::InvalidLiveUrl { .. }),
+        "got {err:?}"
+    );
+}
+
+#[test]
+fn optional_base_none_stays_loopback() {
+    let client = ApiClient::from_optional_base(None).expect("default is loopback");
+    assert!(!client.is_remote());
+    assert_eq!(client.host(), LOOPBACK_HOST);
+    assert_eq!(client.port(), LIVE_CLIENT_PORT);
+}

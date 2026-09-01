@@ -161,8 +161,11 @@ fn canonical_region_order_at_80x24_with_notice_filling_final_row() {
     let events_y = find_row(&buffer, "EVENTS").expect("EVENTS header");
 
     assert_eq!(live_y, 0, "header first");
-    assert!(order_y < chaos_y, "ORDER column before CHAOS column");
-    assert!(chaos_y < local_y, "columns before the local strip");
+    assert_eq!(
+        order_y, chaos_y,
+        "ORDER and CHAOS headers share one body row (side-by-side columns)"
+    );
+    assert!(order_y < local_y, "columns before the local strip");
     assert!(local_y < events_y, "local strip before the ticker");
     assert!(events_y < 23, "ticker before the status row");
 
@@ -171,6 +174,96 @@ fn canonical_region_order_at_80x24_with_notice_filling_final_row() {
         status.starts_with(RIOT_NOTICE),
         "Riot notice fills the final row: {status:?}"
     );
+}
+
+/// live-dashboard-ui R3: canonical 80×24 must show all five players per team
+/// (identity + viz rows) — supports appear as SUP + champion in compact columns.
+#[test]
+fn canonical_80x24_renders_all_five_players_per_team() {
+    let app = live_app_with_snapshot("full");
+    let buffer = draw_at(&app, 80, 24);
+    let events_y = find_row(&buffer, "EVENTS").unwrap_or(buffer.area.height);
+    let layout = tui_lol::ui::select_layout(Rect::new(0, 0, 80, 24));
+    let mid = buffer.area.width / 2;
+
+    assert_eq!(
+        layout.areas.body.height, 11,
+        "canonical viewport pins body to eleven rows for five 2-row cards"
+    );
+
+    for (label, champ) in [("SUP", "Lulu"), ("SUP", "Thresh")] {
+        let rows = (0..events_y)
+            .filter(|&y| {
+                let left = row_text(&buffer, y);
+                let right = (mid..buffer.area.width)
+                    .map(|x| buffer[(x, y)].symbol())
+                    .collect::<String>();
+                (left.contains(label) && left.contains(champ))
+                    || (right.contains(label) && right.contains(champ))
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            rows.len(),
+            1,
+            "support {label} {champ} must appear once in team columns at 80x24: {rows:?}"
+        );
+        assert!(rows[0] < events_y, "support row must sit above EVENTS");
+    }
+
+    let viz_rows = (layout.areas.body.y..layout.areas.body.bottom())
+        .filter(|&y| row_text(&buffer, y).starts_with("Lv"))
+        .count();
+    assert_eq!(
+        viz_rows, 5,
+        "five paired visualization rows (one per roster slot) at 80x24"
+    );
+}
+
+/// Canonical 80×24 frame dumps must keep roster identity readable inside
+/// each ~40-cell team column (no mid-field clip from the full formatter).
+#[test]
+fn canonical_80x24_identity_lines_fit_team_columns() {
+    let app = live_app_with_snapshot("full");
+    let buffer = draw_at(&app, 80, 24);
+    let mid = buffer.area.width / 2;
+
+    let segment = |y: u16, start: u16, end: u16| -> String {
+        (start..end)
+            .map(|x| buffer[(x, y)].symbol())
+            .collect::<String>()
+            .trim_end()
+            .to_owned()
+    };
+
+    for y in 2..12 {
+        let left = segment(y, 0, mid);
+        let right = segment(y, mid, buffer.area.width);
+        if left.starts_with("Lv") || right.starts_with("Lv") {
+            continue;
+        }
+        if left.contains("Team ") || right.contains("Team ") {
+            continue;
+        }
+        if left.is_empty() && right.is_empty() {
+            continue;
+        }
+        assert!(
+            left.chars().count() <= usize::from(mid),
+            "ORDER identity must fit its column on row {y}: {left:?}"
+        );
+        assert!(
+            right.chars().count() <= usize::from(buffer.area.width - mid),
+            "CHAOS identity must fit its column on row {y}: {right:?}"
+        );
+        assert!(
+            left.contains("Lv") && left.contains("CS"),
+            "compact ORDER identity on row {y}: {left:?}"
+        );
+        assert!(
+            right.contains("Lv") && right.contains("CS"),
+            "compact CHAOS identity on row {y}: {right:?}"
+        );
+    }
 }
 
 /// viz spec R2 + R9/S2 discipline: whatever the height — from a 1-row

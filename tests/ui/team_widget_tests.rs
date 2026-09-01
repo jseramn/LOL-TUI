@@ -682,3 +682,70 @@ fn order_and_chaos_columns_render_side_by_side() {
          CHAOS beginning at column {mid}"
     );
 }
+
+/// viz spec R2 + R9: at the canonical 80×24 viewport each team column is
+/// ~40 cells. Charts must still draw (compact tracks), not clip away
+/// behind a 45-cell full-width prefix.
+#[test]
+fn charts_fit_inside_canonical_80x24_team_columns() {
+    let mut order = ps(Some(Team::Order), Some(200.0));
+    order.level = Some(18);
+    (order.kills, order.deaths, order.assists) = (Some(5), Some(2), Some(4));
+    order.items = Some(vec![
+        item(Some(0), Some(3006)),
+        item(Some(1), Some(6672)),
+        item(Some(2), Some(3153)),
+    ]);
+    let mut chaos = ps(Some(Team::Chaos), Some(80.0));
+    chaos.level = Some(1);
+    (chaos.kills, chaos.deaths, chaos.assists) = (Some(1), Some(1), Some(1));
+    chaos.items = Some(vec![item(Some(0), Some(1055))]);
+
+    let mut terminal = Terminal::new(TestBackend::new(80, 24)).expect("test backend");
+    let app = live_app_with(vec![order, chaos]);
+    let frame = terminal
+        .draw(|f| tui_lol::ui::render(f, &app))
+        .expect("frame");
+    let buffer = frame.buffer.clone();
+    let columns = select_layout(Rect::new(0, 0, 80, 24)).columns;
+
+    let segment = |column: ratatui::layout::Rect, y: u16| -> String {
+        (column.x..column.x + column.width)
+            .map(|x| buffer[(x, y)].symbol())
+            .collect()
+    };
+    let viz_in = |column: ratatui::layout::Rect| -> Vec<String> {
+        (0..buffer.area.height)
+            .map(|y| segment(column, y))
+            .filter(|row| row.starts_with("Lv"))
+            .collect()
+    };
+
+    let order_rows = viz_in(columns.order);
+    let chaos_rows = viz_in(columns.chaos);
+    assert_eq!(order_rows.len(), 1, "ORDER viz row: {order_rows:?}");
+    assert_eq!(chaos_rows.len(), 1, "CHAOS viz row: {chaos_rows:?}");
+
+    let has_block = |row: &str| row.chars().any(|c| c == '\u{2588}' || c == '\u{2591}');
+    assert!(
+        has_block(&order_rows[0]),
+        "ORDER charts must render at 80x24: {}",
+        order_rows[0]
+    );
+    assert!(
+        has_block(&chaos_rows[0]),
+        "CHAOS charts must render at 80x24: {}",
+        chaos_rows[0]
+    );
+    assert!(
+        order_rows[0].contains("CS"),
+        "CS section must remain: {}",
+        order_rows[0]
+    );
+    let inv = inventory_strip(&order_rows[0]);
+    assert_eq!(
+        inv.chars().filter(|c| c == &'\u{2593}').count(),
+        3,
+        "inventory strip must occupy the last six cells: {inv}"
+    );
+}

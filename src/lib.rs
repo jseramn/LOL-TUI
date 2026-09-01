@@ -5,6 +5,9 @@
 //! binary shell on top of this crate.
 pub mod api;
 pub mod app;
+pub mod bridge;
+pub mod cli;
+pub mod dump;
 pub mod events;
 pub mod glyphs;
 pub mod history;

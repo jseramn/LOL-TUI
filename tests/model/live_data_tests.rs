@@ -191,3 +191,55 @@ fn malformed_json_reports_parse_error_without_panic() {
     let err = result.expect_err("malformed fixture must be rejected");
     assert!(!err.to_string().is_empty());
 }
+
+/// Official liveclientdata_sample.json uses `championStats` + resource*
+/// / moveSpeed aliases instead of the fixture `statistics`/`power` names.
+#[test]
+fn official_sample_champion_stats_alias_parses() {
+    let json = r#"{
+        "activePlayer": {
+            "championName": "Annie",
+            "currentGold": 12.5,
+            "level": 1,
+            "championStats": {
+                "currentHealth": 100.0,
+                "maxHealth": 200.0,
+                "resourceValue": 50.0,
+                "resourceMax": 80.0,
+                "moveSpeed": 330.0
+            },
+            "abilities": {
+                "Q": {"abilityLevel": 1, "displayName": "Disintegrate"},
+                "W": {"abilityLevel": 0, "displayName": "Incinerate"},
+                "E": {"abilityLevel": 0, "displayName": "Molten Shield"},
+                "R": {"abilityLevel": 0, "displayName": "Summon: Tibbers"}
+            }
+        },
+        "allPlayers": [],
+        "events": {"Events": []},
+        "gameData": {
+            "gameMode": "CLASSIC",
+            "gameTime": 1.5,
+            "mapName": "Map11",
+            "gameId": 9876543210
+        }
+    }"#;
+    let data = parse_all_game_data(json).expect("official sample shape must parse");
+    let local = data.active_player.as_ref().expect("activePlayer");
+    let stats = local.statistics.as_ref().expect("championStats alias");
+    assert_eq!(stats.current_health, Some(100.0));
+    assert_eq!(stats.max_health, Some(200.0));
+    assert_eq!(stats.power, Some(50.0));
+    assert_eq!(stats.power_max, Some(80.0));
+    assert_eq!(stats.movement_speed, Some(330.0));
+    let q = local
+        .abilities
+        .as_ref()
+        .and_then(|a| a.q.as_ref())
+        .and_then(|a| a.ability_level);
+    assert_eq!(q, Some(1));
+    assert_eq!(
+        data.game_data.as_ref().and_then(|g| g.game_id),
+        Some(9876543210)
+    );
+}

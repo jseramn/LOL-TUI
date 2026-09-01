@@ -1,6 +1,6 @@
 //! Objective/kill event ticker contracts (tasks 5.1–5.2, ui spec R5):
-//! the ticker lists match events with their participants and the EXPOSED
-//! `EventTime` values verbatim, and degrades to an explicit empty-state
+//! the ticker lists match events with their participants and the exposed
+//! `EventTime` values as `mm:ss`, and degrades to an explicit empty-state
 //! message when the snapshot carries zero events.
 //!
 //! Snapshots come straight from the offline fixture corpus (design D5);
@@ -58,30 +58,48 @@ fn require_row(buffer: &Buffer, needle: &str) -> String {
 // --- Task 5.1 / ui spec R5/S1: supported events with participants + times ---
 
 /// The full fixture carries nine events; the spec scenario pins three of
-/// them: FirstBlood, TurretKilled, and a STOLEN Chemtech DragonKill — each
-/// listed with participants and the exposed EventTime verbatim.
+/// them: FirstBlood, TurretKilled, and a stolen Chemtech DragonKill — each
+/// listed with participants and the exposed EventTime as `mm:ss`.
 #[test]
 fn ticker_lists_events_with_participants_and_exposed_times() {
     let buffer = draw(&live_app_with("full"));
 
-    // FirstBlood with its recipient and exposed time 182.44.
-    let first_blood = require_row(&buffer, "@182.44 FirstBlood");
+    let first_blood = require_row(&buffer, "primera sangre");
     assert!(
         first_blood.contains("Order"),
         "recipient as exposed: {first_blood}"
     );
+    assert!(
+        first_blood.contains("03:02"),
+        "EventTime 182.44 as clock: {first_blood}"
+    );
 
-    // TurretKilled with killer, structure name, and exposed time 703.42.
-    let turret = require_row(&buffer, "@703.42 TurretKilled");
-    for token in ["ADCarryMain", "Turret_T1_C_03"] {
-        assert!(turret.contains(token), "participants as exposed: {turret}");
-    }
+    let turret = require_row(&buffer, "torre");
+    assert!(
+        turret.contains("ADCarryMain"),
+        "participants as exposed: {turret}"
+    );
+    assert!(
+        turret.contains("11:43"),
+        "EventTime 703.42 as clock: {turret}"
+    );
 
-    // Stolen Chemtech DragonKill with killer, type, stolen flag, time 512.18.
-    let dragon = require_row(&buffer, "@512.18 DragonKill");
-    for token in ["Chemtech", "JungleKing", "STOLEN"] {
+    let dragon = require_row(&buffer, "Chemtech");
+    for token in ["JungleKing", "robado", "08:32"] {
         assert!(dragon.contains(token), "stolen dragon wording: {dragon}");
     }
+}
+
+/// Newest events lead so a short ticker still shows what just happened.
+#[test]
+fn ticker_lists_newest_events_first() {
+    let buffer = draw(&live_app_with("full"));
+    let ace_y = find_row(&buffer, "ace").expect("ace is the latest fixture event");
+    let start_y = find_row(&buffer, "inicio").expect("game start still listed");
+    assert!(
+        ace_y < start_y,
+        "newest event must sit above older ones ({ace_y} vs {start_y})"
+    );
 }
 
 /// The ticker section renders below the player panels (after the LOCAL
@@ -94,7 +112,7 @@ fn ticker_section_sits_below_the_local_strip() {
     let events_y = find_row(&buffer, "EVENTS").expect("EVENTS section header");
     assert!(events_y > local_y, "ticker belongs under the panels");
 
-    let first_event_y = find_row(&buffer, "@0.046 GameStart").expect("first fixture event listed");
+    let first_event_y = find_row(&buffer, "inicio").expect("game start listed");
     assert!(
         first_event_y > events_y,
         "event lines follow the section header"
@@ -110,9 +128,13 @@ fn empty_event_list_shows_placeholder_instead_of_failing() {
     let buffer = draw(&live_app_with("empty_events"));
 
     find_row(&buffer, "EVENTS").expect("section header still present");
-    let placeholder = require_row(&buffer, "No match events yet.");
+    let placeholder = require_row(&buffer, "sin eventos");
     assert!(
-        !placeholder.contains('@'),
+        !placeholder.contains(':') || placeholder.contains("sin eventos"),
         "empty state must not invent an event time: {placeholder}"
+    );
+    assert!(
+        !placeholder.contains("inicio"),
+        "empty state must not invent events: {placeholder}"
     );
 }

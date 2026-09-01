@@ -1,0 +1,32 @@
+LIVE  12:34  CLASSIC | ORDER 23 - 20 CHAOS | DRG 1 HERALD 1 TWR 1                                                       
+Team ORDER  23                                              │ Team CHAOS  20                                            
+TOP  Aatrox  Lv13  5/2/4  CS212  F+TP                       TOP  Darius  Lv12  3/4/2  CS198  F+G                        
+Lv███████░░░ K█████    D███      A██       CS██████   ▓▓▓▓▓▓Lv██████░░░░ K███      D█████    A█        CS██████   ▓▓▓▓▓▓
+JGL  Lee Sin  Lv12  4/3/9  CS168  F+D  DEAD 12s             JGL  Graves  Lv12  5/3/5  CS176  F+D  DEAD 34s              
+Lv██████░░░░ K████     D████     A████     CS█████    ▓▓▓▓▓▓Lv██████░░░░ K█████    D████     A██       CS█████    ▓▓▓▓▓▓
+MID  Ahri  Lv12  6/1/7  CS196  F+I                          MID  Syndra  Lv13  8/2/6  CS230  F+I                        
+Lv██████░░░░ K██████   D█        A███      CS██████   ▓▓▓▓▓▓Lv███████░░░ K████████ D███      A███      CS███████  ▓▓▓▓▓▓
+ADC  Jinx  Lv11  7/2/3  CS244  H+F                          ADC  Kai'Sa  Lv11  4/5/4  CS210  H+F                        
+Lv██████░░░░ K███████  D███      A█        CS████████ ▓▓▓▓▓▓Lv██████░░░░ K████     D███████  A██       CS██████   ▓▓▓▓▓▓
+SUP  Lulu  Lv10  1/4/18  CS48  F+I                          SUP  Thresh  Lv9  0/6/14  CS48  F+I                         
+Lv█████░░░░░ K█        D█████    A████████ CS█        ▓▓▓▓▓▓Lv█████░░░░░ K         D████████ A██████   CS█        ▓▓▓▓▓▓
+                                                                                                                        
+                                                                                                                        
+LOCAL Ahri Lv12  Gold 1235  HP 1875/2015  mana 940/1120  Q4 W2 E3 R1                                                    
+LOCAL HP  93% ██████████████████████████████████████████████████████████████████████████████████████████████████░░░░░░░░
+LOCAL Power  84% ██████████████████████████████████████████████████████████████████████████████████████░░░░░░░░░░░░░░░░░
+GOLD warming up (1/120)                                                                                                 
+EVENTS                                                                                                                  
+19:38  ace  Chaos                                                                                                       
+15:21  heraldo  TopGap                                                                                                  
+11:43  ADCarryMain  torre  +MidMage +SupportSage                                                                        
+08:32  dragon Chemtech  JungleKing  robado                                                                              
+03:04  racha 2                                                                                                          
+03:02  MidMage  mata  SyndraGod  +JungleKing                                                                            
+03:02  primera sangre  Order                                                                                            
+00:15  subditos                                                                                                         
+00:00  inicio                                                                                                           
+                                                                                                                        
+                                                                                                                        
+                                                                                                                        
+This product is not endorsed by Riot Games. | state=in-game ok | updated 22:02:15 UTC                                   

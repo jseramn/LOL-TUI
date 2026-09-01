@@ -5,6 +5,7 @@
 
 mod dashboard_tests;
 mod degradation_tests;
+mod format_tests;
 mod glyph_tests;
 mod local_strip_tests;
 mod shell_render_tests;

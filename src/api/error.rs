@@ -13,9 +13,13 @@ use thiserror::Error;
 /// Construction-time failures. Raised before any network object exists.
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum BuildError {
-    /// Host other than the literal `127.0.0.1` was configured.
+    /// Host other than the literal `127.0.0.1` was configured for the
+    /// default local client (remote/tunnel targets use a separate constructor).
     #[error("non-loopback host refused: {host:?} (only 127.0.0.1 is allowed)")]
     NonLoopbackHost { host: String },
+    /// Construction-time URL that is not `http`/`https` or has no host.
+    #[error("invalid live URL: {detail}")]
+    InvalidLiveUrl { detail: String },
 }
 
 /// Reason attached to a [`PollError::Transient`] classification.

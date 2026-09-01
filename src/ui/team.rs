@@ -53,6 +53,7 @@
 //!
 //! Implemented in Phase 4 (tasks 4.2–4.5).
 
+use super::format;
 use super::{ChartSet, TeamColumns};
 use crate::glyphs::Glyph;
 use crate::history::chart_u64;
@@ -63,24 +64,63 @@ use ratatui::style::{Color, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Bar, BarChart, Paragraph};
 
-/// Fixed track width of a level bar in cells (task 4.3 fills it).
-const LEVEL_TRACK_CELLS: usize = 10;
-/// Fixed track width of each K/D/A mini-bar in cells (task 4.4).
-const KDA_TRACK_CELLS: usize = 8;
+/// Full-width level track (frozen U3 contract; used when the column is
+/// wide enough). Compact viewports (80×24 team halves ≈ 40 cells) shrink
+/// this so CS + inventory still fit (viz spec R2 + R9).
+const LEVEL_TRACK_FULL: usize = 10;
+const LEVEL_TRACK_COMPACT: usize = 5;
+/// Full-width K/D/A mini-bar track. Compact columns use a shorter track.
+const KDA_TRACK_FULL: usize = 8;
+const KDA_TRACK_COMPACT: usize = 4;
 /// Fixed cell count of the inventory fill strip (slots 0–5; task 4.5).
 const INVENTORY_CELLS: usize = 6;
 
-/// Prefix width in cells for a given visibility set: each visible family
-/// contributes its fixed section, plus single-space separators between
-/// adjacent sections. The full tier (`ChartSet::ALL` team families) must
-/// keep reproducing the frozen U3 row contract: `Lv<10> K<8> D<8> A<8> CS`
-/// = 45 cells.
-fn prefix_cells(visible: ChartSet) -> u16 {
-    let section_cells = visible.level as u16 * (2 + LEVEL_TRACK_CELLS as u16)
-        + visible.kda as u16 * 3 * (1 + KDA_TRACK_CELLS as u16)
+/// Per-row bar geometry. Wide columns keep the 10/8 U3 contract; a
+/// side-by-side 80×24 column (~40 cells) cannot host a 45-cell prefix
+/// plus a CS chart plus inventory, so tracks shrink instead of clipping
+/// the charts away.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct TrackGeom {
+    level: usize,
+    kda: usize,
+}
+
+/// Prefix width in cells for a given visibility set and track geometry:
+/// each visible family contributes its section, plus single-space
+/// separators between adjacent sections. Full geometry (`10`/`8`) still
+/// reproduces the frozen U3 row contract: `Lv<10> K<8> D<8> A<8> CS` = 45.
+fn prefix_cells(visible: ChartSet, geom: TrackGeom) -> u16 {
+    let section_cells = visible.level as u16 * (2 + geom.level as u16)
+        + visible.kda as u16 * 3 * (1 + geom.kda as u16)
         + visible.cs as u16 * 2;
     let section_count = visible.level as u16 + visible.kda as u16 * 3 + visible.cs as u16;
     section_cells.saturating_add(section_count.saturating_sub(1))
+}
+
+/// Picks full vs compact tracks so the prefix, a usable CS chart, and the
+/// inventory strip all fit in `row_width`.
+fn track_geom(row_width: u16, visible: ChartSet) -> TrackGeom {
+    let full = TrackGeom {
+        level: LEVEL_TRACK_FULL,
+        kda: KDA_TRACK_FULL,
+    };
+    let min_cs = if visible.cs { 4 } else { 0 };
+    let inv = if visible.inventory {
+        INVENTORY_GAP + INVENTORY_CELLS as u16
+    } else {
+        0
+    };
+    if row_width
+        >= prefix_cells(visible, full)
+            .saturating_add(min_cs)
+            .saturating_add(inv)
+    {
+        return full;
+    }
+    TrackGeom {
+        level: LEVEL_TRACK_COMPACT,
+        kda: KDA_TRACK_COMPACT,
+    }
 }
 
 /// Separator cell between the CS chart and the inventory strip.
@@ -90,13 +130,11 @@ const INVENTORY_GAP: u16 = 1;
 /// it is excluded from the fill count (design D3).
 const TRINKET_SLOT: u8 = 6;
 
-/// Renders the team-column widget families the degradation matrix marked
-/// visible, one row per visible player in roster order: ORDER players fill
-/// the left column top-down, CHAOS players the right one (viz spec R2's
-/// side-by-side columns). Hidden families omit their whole section — track,
-/// label, chart or strip — from every row; with all four families hidden
-/// nothing draws at all. Extra players clip silently; an empty column is a
-/// no-op.
+/// Renders each team as a side-by-side card column (viz spec R2): a
+/// coloured `Team ORDER` / `Team CHAOS` header, then one identity line
+/// plus one visualization row per player. Hidden chart families omit their
+/// viz row's sections; with every family hidden only the identity lines
+/// remain. Extra players clip silently.
 ///
 /// The CS maximum is GLOBAL — the highest converted score among ALL visible
 /// players of BOTH teams (viz:R3/S1) — computed through the sole f64→u64
@@ -109,9 +147,6 @@ pub(super) fn render(
     columns: TeamColumns,
     visible: ChartSet,
 ) {
-    if !(visible.cs || visible.level || visible.kda || visible.inventory) {
-        return;
-    }
     let roster: Vec<&PlayerSnapshot> = [Team::Order, Team::Chaos]
         .into_iter()
         .flat_map(|team| {
@@ -164,9 +199,7 @@ pub(super) fn render(
     );
 }
 
-/// Draws ONE team's visualization rows top-down inside its own side-by-side
-/// column rect, clipped at the column boundary exactly as the single-band
-/// renderer used to clip at the body edge.
+/// Draws ONE team's header + player cards top-down inside its column.
 fn render_team(
     frame: &mut Frame,
     snapshot: &Snapshot,
@@ -179,19 +212,50 @@ fn render_team(
     if area.is_empty() {
         return;
     }
+    let color = match team {
+        Team::Order => Color::Cyan,
+        Team::Chaos => Color::Red,
+    };
+    let title = super::scoreboard::team_title(team, snapshot);
+    frame.render_widget(
+        Paragraph::new(Line::from(Span::styled(title, Style::default().fg(color)))),
+        Rect { height: 1, ..area },
+    );
+
+    let charts_on = visible.cs || visible.level || visible.kda || visible.inventory;
     let members: Vec<&PlayerSnapshot> = snapshot
         .players
         .iter()
         .filter(|p| p.team == Some(team))
         .collect();
-    let rows = area.height.min(members.len() as u16) as usize;
-    for (i, player) in members.iter().take(rows).enumerate() {
-        let row = Rect {
-            y: area.y + i as u16,
+    let mut y = 1u16;
+    for player in members {
+        if y >= area.height {
+            break;
+        }
+        let ident = Rect {
+            y: area.y + y,
             height: 1,
             ..area
         };
-        render_row(frame, row, player, cs_max, kda_max, visible);
+        let text = format::player_line_for_width(player, area.width);
+        let mut identity = Paragraph::new(text);
+        identity = identity.style(Style::default().fg(if player.is_dead == Some(true) {
+            Color::DarkGray
+        } else {
+            color
+        }));
+        frame.render_widget(identity, ident);
+        y = y.saturating_add(1);
+        if charts_on && y < area.height {
+            let viz = Rect {
+                y: area.y + y,
+                height: 1,
+                ..area
+            };
+            render_row(frame, viz, player, cs_max, kda_max, visible);
+            y = y.saturating_add(1);
+        }
     }
 }
 
@@ -207,13 +271,14 @@ fn render_row(
     kda_max: (u64, u64, u64),
     visible: ChartSet,
 ) {
-    let prefix_width = prefix_cells(visible).min(row.width);
+    let geom = track_geom(row.width, visible);
+    let prefix_width = prefix_cells(visible, geom).min(row.width);
     let prefix = Rect {
         width: prefix_width,
         ..row
     };
     frame.render_widget(
-        Paragraph::new(prefix_spans(player, kda_max, visible)),
+        Paragraph::new(prefix_spans(player, kda_max, visible, geom)),
         prefix,
     );
 
@@ -295,11 +360,17 @@ fn inventory_paragraph(items: Option<&[ItemSnapshot]>) -> Paragraph<'static> {
 }
 
 /// Maps a level onto the FIXED 1–18 scale (viz:R4): `(level − 1) / 17`
-/// clamped into [0, 1], expressed in whole track cells. The mapping never
-/// rescales between frames and never panics — absurd values saturate.
+/// clamped into [0, 1], expressed in whole track cells of the full (10-cell)
+/// contract. The mapping never rescales between frames and never panics —
+/// absurd values saturate. Compact rows scale this same ratio onto a
+/// shorter track via [`level_fill_for_track`].
 pub fn level_fill_cells(level: u32) -> usize {
+    level_fill_for_track(level, LEVEL_TRACK_FULL)
+}
+
+fn level_fill_for_track(level: u32, track: usize) -> usize {
     let ratio = ((f64::from(level) - 1.0) / 17.0).clamp(0.0, 1.0);
-    (ratio * f64::from(LEVEL_TRACK_CELLS as u16)).round() as usize
+    (ratio * track as f64).round() as usize
 }
 
 /// Maps a counter onto a shared maximum, expressed in whole track cells:
@@ -316,24 +387,46 @@ pub fn scaled_cells(value: u64, max: u64, track: usize) -> usize {
 
 /// The fixed-prefix label spans for one player: only the sections the
 /// degradation matrix keeps visible, joined by single spaces. With every
-/// team family visible the emitted bytes are IDENTICAL to the pre-tier
-/// frozen contract (`Lv<10> K<8> D<8> A<8> CS`).
+/// team family visible AND full geometry the emitted bytes are IDENTICAL
+/// to the pre-tier frozen contract (`Lv<10> K<8> D<8> A<8> CS`).
 fn prefix_spans(
     player: &PlayerSnapshot,
     kda_max: (u64, u64, u64),
     visible: ChartSet,
+    geom: TrackGeom,
 ) -> Line<'static> {
     let mut spans: Vec<Span<'static>> = Vec::with_capacity(5);
     if visible.level {
         // Label and track are ONE section — fusing them keeps the emitted
         // element count equal to `prefix_cells`'s section count, so the
-        // full-tier prefix stays exactly 45 cells.
-        spans.push(Span::from(format!("Lv{}", level_track(player.level))));
+        // full-tier prefix stays exactly 45 cells on wide columns.
+        spans.push(Span::from(format!(
+            "Lv{}",
+            level_track(player.level, geom.level)
+        )));
     }
     if visible.kda {
-        spans.push(metric_span("K", player.kills, kda_max.0, Color::Green));
-        spans.push(metric_span("D", player.deaths, kda_max.1, Color::Red));
-        spans.push(metric_span("A", player.assists, kda_max.2, Color::Blue));
+        spans.push(metric_span(
+            "K",
+            player.kills,
+            kda_max.0,
+            Color::Green,
+            geom.kda,
+        ));
+        spans.push(metric_span(
+            "D",
+            player.deaths,
+            kda_max.1,
+            Color::Red,
+            geom.kda,
+        ));
+        spans.push(metric_span(
+            "A",
+            player.assists,
+            kda_max.2,
+            Color::Blue,
+            geom.kda,
+        ));
     }
     if visible.cs {
         spans.push(Span::from("CS"));
@@ -360,17 +453,23 @@ fn join_with_spaces(spans: Vec<Span<'static>>) -> Line<'static> {
 /// to the spec's color (kills green, deaths red, assists blue) so the
 /// binding survives palette degradation — only colors degrade, never a
 /// bar itself (viz:R5/S2, S3).
-fn metric_span(letter: &str, value: Option<u32>, max: u64, color: Color) -> Span<'static> {
+fn metric_span(
+    letter: &str,
+    value: Option<u32>,
+    max: u64,
+    color: Color,
+    track_cells: usize,
+) -> Span<'static> {
     let track = match value {
         Some(value) => {
-            let filled = scaled_cells(u64::from(value), max, KDA_TRACK_CELLS);
+            let filled = scaled_cells(u64::from(value), max, track_cells);
             format!(
                 "{letter}{}{}",
                 Glyph::FullBlock.symbol().repeat(filled),
-                " ".repeat(KDA_TRACK_CELLS - filled),
+                " ".repeat(track_cells - filled),
             )
         }
-        None => format!("{letter}?{}", " ".repeat(KDA_TRACK_CELLS - 1)),
+        None => format!("{letter}?{}", " ".repeat(track_cells.saturating_sub(1))),
     };
     Span::styled(track, Style::default().fg(color))
 }
@@ -378,19 +477,17 @@ fn metric_span(letter: &str, value: Option<u32>, max: u64, color: Color) -> Span
 /// The level bar: `filled` full blocks followed by light-shade empty track,
 /// or the explicit `?` placeholder when the payload omitted the level.
 /// Glyphs flow exclusively through the whitelist module (design D8).
-fn level_track(level: Option<u32>) -> String {
+fn level_track(level: Option<u32>, track_cells: usize) -> String {
     match level {
         Some(level) => {
-            let filled = level_fill_cells(level);
+            let filled = level_fill_for_track(level, track_cells);
             // The ratio is clamped into [0, 1] first, so `filled` can never
             // exceed the track width.
             let blocks = Glyph::FullBlock.symbol().repeat(filled);
-            let shades = Glyph::LightShade
-                .symbol()
-                .repeat(LEVEL_TRACK_CELLS - filled);
+            let shades = Glyph::LightShade.symbol().repeat(track_cells - filled);
             format!("{blocks}{shades}")
         }
-        None => format!("?{}", " ".repeat(LEVEL_TRACK_CELLS.saturating_sub(1))),
+        None => format!("?{}", " ".repeat(track_cells.saturating_sub(1))),
     }
 }
 

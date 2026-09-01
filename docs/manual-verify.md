@@ -46,17 +46,18 @@ Enter a real match (custom game suffices) and wait for the first poll cycle
 (≤ 1 s at default cadence):
 
 - [ ] The view swaps to the live dashboard within about one second of game
-      start: `LIVE` headline, `Team ORDER` / `Team CHAOS` blocks with one
-      panel per player (champion, level, KDA, CS, items, summoner spells),
-      and your own `LOCAL ...` strip at the end.
-- [ ] Dead players show their exposed respawn value verbatim, e.g.
-      `DEAD(respawn 12.5)`; players dead without an exposed timer show
-      `DEAD(respawn ?)` — never a ticking countdown (design hard rule).
+      start: scoreboard `LIVE  mm:ss  CLASSIC | ORDER k - k CHAOS | DRG …`
+      headline, `Team ORDER` / `Team CHAOS` **side-by-side** columns with one
+      card per player (role, champion, level, KDA, CS, short summoner spells,
+      plus CS/level/KDA/inventory bars), and your own `LOCAL ...` strip at the
+      end.
+- [ ] Dead players show their exposed respawn value as whole seconds, e.g.
+      `DEAD 12s`; players dead without an exposed timer show `DEAD ?` —
+      never a ticking countdown (design hard rule).
 - [ ] Gold appears ONLY on your LOCAL strip (`Gold <value>`); no enemy or
       ally panel ever shows gold (ui spec R4).
-- [ ] The `EVENTS` section lists kills/objectives as they happen, each line
-      starting with the exposed event time verbatim, e.g.
-      `@512.18 DragonKill Chemtech slain by JungleKing STOLEN` (ui spec R5).
+- [ ] The `EVENTS` section lists kills/objectives as they happen, newest first,
+      with the exposed event time as `mm:ss` (ui spec R5).
 - [ ] The status line shows `state=in-game ok | updated HH:MM:SS UTC`.
 
 ## 4. Mid-game disconnect / reconnect (standby ↔ live swap)
@@ -239,6 +240,86 @@ band at a time and confirm the degradation matrix (viz:R9/S1):
 - [ ] Leave and enter a DIFFERENT game: the gold trend resets — the row
       returns to `GOLD warming up (n/120)` until two fresh samples arrive
       (viz:R8/S3).
+
+---
+
+## 12. Cloud-dev tunnel (optional — local use does not need this)
+
+Port `https://127.0.0.1:2999` exists **only during a live match**. The TUI
+defaults to that loopback origin. To let a remote agent poll the same
+payload, run a short-lived **HTTP bridge on loopback** and a
+Cloudflare/Tailscale tunnel on the gaming PC (never a permanent public
+hostname — the live client exposes your match).
+
+**Never tunnel the LCU** (Riot client HTTPS on another port). Only tunnel
+the plain-HTTP bridge in front of `:2999` (default bind `127.0.0.1:18789`).
+
+### 12.1 Identity (match clock / LCU gameId)
+
+With the game already loading or in-game:
+
+```powershell
+curl.exe -k https://127.0.0.1:2999/liveclientdata/gamestats
+python scripts/live_bridge.py --id-only
+```
+
+`gamestats` is the live clock/mode/map. The numeric match id **often does
+not appear** in the Live Client payload (`gameId` is frequently absent or
+zero). Treat the **LCU** as canonical: `lol-gameflow/v1/session` →
+`gameData.gameId`, discovered via the install-dir lockfile or, on Windows,
+`LeagueClientUx.exe` command-line `--app-port` / `--remoting-auth-token`
+when the lockfile is missing. `scripts/live_bridge.py` prints `id_src=lcu`
+when it resolves that value.
+
+### 12.2 Bridge + cloudflared quick tunnel (paste URL to the cloud agent)
+
+The bridge listens on **loopback only** (`127.0.0.1:18789` by default).
+`cloudflared tunnel --url http://127.0.0.1:18789` is a **quick tunnel**
+(trycloudflare.com) — not `cloudflared serve` and not a stable hostname.
+
+```powershell
+# One shot: HTTP proxy on 127.0.0.1:18789 + trycloudflare URL
+python scripts/live_bridge.py --tunnel
+```
+
+Or two terminals:
+
+```powershell
+cargo run -j 1 -- bridge
+cloudflared tunnel --url http://127.0.0.1:18789
+```
+
+### 12.3 Tailscale (tailnet vs public)
+
+Tailscale **Serve** (`tailscale serve --bg 18789`) exposes the bridge to
+**your tailnet only** — other Tailscale nodes, not the public Internet.
+Use **Funnel** (`tailscale funnel 18789`) when the cloud agent is outside
+your tailnet and needs a public HTTPS URL (same threat model as
+trycloudflare: short-lived, match data only).
+
+```powershell
+cargo run -j 1 -- bridge
+tailscale serve --bg 18789
+# public alternative:
+# tailscale funnel 18789
+```
+
+Then the agent runs:
+
+```
+cargo run -- dump --live-url https://<tunnel-host>
+# or
+$env:TUI_LOL_LIVE_URL='https://<tunnel-host>'; cargo run -j 1
+```
+
+Local play stays `cargo run` with no flags.
+
+Offline visual check (no match, no tunnel):
+
+```
+cargo run -j 1 -- replay tests/fixtures/allgamedata/full.json
+cargo run -j 1 -- dump tests/fixtures/allgamedata/full.json
+```
 
 ---
 

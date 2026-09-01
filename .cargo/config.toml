@@ -1,0 +1,10 @@
+# Parallel rustc on Windows gnu OOMs (paging file / os error 1455)
+# and can miss dlltool.exe. One codegen job is the supported local build.
+[build]
+jobs = 1
+
+# Default debuginfo=2 + incremental blows the pagefile on windows-gnu.
+# Local `cargo run -j 1` must succeed; use `cargo run --release` later if needed.
+[profile.dev]
+incremental = false
+debug = 0

@@ -17,8 +17,9 @@ use tui_lol::model::live_data::LiveData;
 use tui_lol::model::snapshot::Snapshot;
 use tui_lol::ui;
 
-/// Wide enough that a fully itemized player line never clips.
-const WIDTH: u16 = 240;
+/// Wide enough that a fully itemized player line never clips inside one
+/// side-by-side team column (~200 cells each).
+const WIDTH: u16 = 400;
 const HEIGHT: u16 = 32;
 
 fn snapshot_from_fixture(name: &str) -> Snapshot {
@@ -77,20 +78,8 @@ fn player_row(buffer: &Buffer, name: &str) -> String {
     row_text(buffer, y)
 }
 
-const ORDER_NAMES: [&str; 5] = [
-    "TopLaneTitan",
-    "JungleKing",
-    "MidMage",
-    "ADCarryMain",
-    "SupportSage",
-];
-const CHAOS_NAMES: [&str; 5] = [
-    "TopGap",
-    "GravesMain",
-    "SyndraGod",
-    "KaiSaFan",
-    "HookMaster",
-];
+const ORDER_CHAMPS: [&str; 5] = ["Aatrox", "Lee Sin", "Ahri", "Jinx", "Lulu"];
+const CHAOS_CHAMPS: [&str; 5] = ["Darius", "Graves", "Syndra", "Kai'Sa", "Thresh"];
 
 #[test]
 fn full_snapshot_renders_all_ten_panels_exactly_once() {
@@ -99,32 +88,49 @@ fn full_snapshot_renders_all_ten_panels_exactly_once() {
     // legitimately repeats participant NAMES, so the once-only roster scan
     // is scoped to the rows above the EVENTS header.
     let events_y = find_row(&buffer, "EVENTS").expect("EVENTS header");
-    for name in ORDER_NAMES.into_iter().chain(CHAOS_NAMES) {
+    for name in ORDER_CHAMPS.into_iter().chain(CHAOS_CHAMPS) {
         let rows: Vec<u16> = (0..events_y)
-            .filter(|&y| row_text(&buffer, y).contains(name))
+            .filter(|&y| {
+                let text = row_text(&buffer, y);
+                text.contains(name) && !text.contains("LOCAL")
+            })
             .collect();
         assert_eq!(rows.len(), 1, "{name} must appear on exactly one panel row");
     }
 }
 
 #[test]
-fn panels_are_grouped_by_team_order_then_chaos() {
+fn panels_are_grouped_by_team_side_by_side() {
     let buffer = draw(&live_app_with("full"));
 
     let order_header = find_row(&buffer, "Team ORDER").expect("ORDER team header");
     let chaos_header = find_row(&buffer, "Team CHAOS").expect("CHAOS team header");
-    assert!(order_header < chaos_header, "ORDER block must come first");
+    assert_eq!(
+        order_header, chaos_header,
+        "ORDER and CHAOS headers share the top body row (side-by-side columns)"
+    );
 
-    for name in ORDER_NAMES {
+    let mid = WIDTH / 2;
+    let name_x = |name: &str| -> u16 {
         let y = find_row(&buffer, name).expect(name);
+        let text = row_text(&buffer, y);
+        text.find(name)
+            .expect("name in row")
+            .try_into()
+            .expect("x fits u16")
+    };
+
+    for name in ORDER_CHAMPS {
         assert!(
-            order_header < y && y < chaos_header,
-            "{name} must sit inside the ORDER block"
+            name_x(name) < mid,
+            "{name} must sit in the left (ORDER) column"
         );
     }
-    for name in CHAOS_NAMES {
-        let y = find_row(&buffer, name).expect(name);
-        assert!(y > chaos_header, "{name} must sit inside the CHAOS block");
+    for name in CHAOS_CHAMPS {
+        assert!(
+            name_x(name) >= mid,
+            "{name} must sit in the right (CHAOS) column"
+        );
     }
 }
 
@@ -132,37 +138,16 @@ fn panels_are_grouped_by_team_order_then_chaos() {
 fn every_panel_shows_its_exposed_fields() {
     let buffer = draw(&live_app_with("full"));
 
-    let aatrox = player_row(&buffer, "TopLaneTitan");
-    for token in [
-        "TopLaneTitan",
-        "Aatrox",
-        "Lv13",
-        "5/2/4",
-        "CS212",
-        "SummonerFlash+SummonerTeleport",
-        "Berserker's Greaves",
-        "Kraken Slayer",
-        "Blade of The Ruined King",
-        "Guardian Angel",
-        "Death's Dance",
-        "Long Sword",
-        "Warding Totem Trinket",
-    ] {
+    let aatrox = player_row(&buffer, "Aatrox");
+    for token in ["Aatrox", "Lv13", "5/2/4", "CS212", "F+TP"] {
         assert!(
             aatrox.contains(token),
             "Aatrox panel missing {token:?}: {aatrox}"
         );
     }
 
-    let ahri = player_row(&buffer, "MidMage");
-    for token in [
-        "MidMage",
-        "Ahri",
-        "Lv12",
-        "6/1/7",
-        "CS195.5",
-        "SummonerFlash+SummonerDot",
-    ] {
+    let ahri = player_row(&buffer, "Ahri");
+    for token in ["Ahri", "Lv12", "6/1/7", "CS196", "F+I"] {
         assert!(ahri.contains(token), "Ahri panel missing {token:?}: {ahri}");
     }
 
@@ -184,20 +169,20 @@ fn every_panel_shows_its_exposed_fields() {
 #[test]
 fn dead_players_show_their_exposed_respawn_timer() {
     let buffer = draw(&live_app_with("full"));
-    let lee_sin = player_row(&buffer, "JungleKing");
+    let lee_sin = player_row(&buffer, "Lee Sin");
     assert!(
-        lee_sin.contains("DEAD(respawn 12.5)"),
-        "exposed timer verbatim: {lee_sin}"
+        lee_sin.contains("DEAD 12s"),
+        "exposed timer as whole seconds: {lee_sin}"
     );
 
-    let graves = player_row(&buffer, "GravesMain");
+    let graves = player_row(&buffer, "Graves");
     assert!(
-        graves.contains("DEAD(respawn 34)"),
-        "exposed timer verbatim: {graves}"
+        graves.contains("DEAD 34s"),
+        "exposed timer as whole seconds: {graves}"
     );
 
     // Alive players carry no death tag.
-    let lulu = player_row(&buffer, "SupportSage");
+    let lulu = player_row(&buffer, "Lulu");
     assert!(
         !lulu.contains("DEAD"),
         "alive panel must not be marked dead: {lulu}"
@@ -208,7 +193,7 @@ fn dead_players_show_their_exposed_respawn_timer() {
 fn latest_snapshot_is_reflected_on_the_next_frame() {
     let mut app = live_app_with("full");
     let first = draw(&app);
-    assert!(player_row(&first, "TopLaneTitan").contains("Lv13"));
+    assert!(player_row(&first, "Aatrox").contains("Lv13"));
 
     // A fresh snapshot with changed data must win on the very next frame.
     let mut updated = snapshot_from_fixture("full");
@@ -216,7 +201,7 @@ fn latest_snapshot_is_reflected_on_the_next_frame() {
     app.on_msg(PollMsg::Snapshot(Box::new(updated)));
 
     let second = draw(&app);
-    let aatrox = player_row(&second, "TopLaneTitan");
+    let aatrox = player_row(&second, "Aatrox");
     assert!(
         aatrox.contains("Lv18"),
         "latest snapshot must render: {aatrox}"
@@ -232,16 +217,8 @@ fn latest_snapshot_is_reflected_on_the_next_frame() {
 fn partial_fields_degrade_explicitly_and_only_where_absent() {
     let buffer = draw(&live_app_with("partial_player"));
 
-    let kaisa = player_row(&buffer, "KaiSaFan");
-    for token in [
-        "KaiSaFan",
-        "Kai'Sa",
-        "Lv11",
-        "4/5/?",
-        "CS?",
-        "Items: ?",
-        "SummonerHeal+SummonerFlash",
-    ] {
+    let kaisa = player_row(&buffer, "Kai'Sa");
+    for token in ["Kai'Sa", "Lv11", "4/5/?", "CS?", "H+F"] {
         assert!(
             kaisa.contains(token),
             "degraded panel missing {token:?}: {kaisa}"
@@ -254,17 +231,18 @@ fn partial_fields_degrade_explicitly_and_only_where_absent() {
     );
 
     // Every other panel remains fully populated — no placeholder leaks.
-    for name in ["TopLaneTitan", "JungleKing", "MidMage", "HookMaster"] {
+    // Skip Jinx: she shares a row with Kai'Sa, whose `?` would false-fail.
+    for name in ["Aatrox", "Lee Sin", "Ahri", "Thresh"] {
         let row = player_row(&buffer, name);
         assert!(
             !row.contains('?'),
             "intact panel {name} must not contain placeholders: {row}"
         );
     }
-    let thresh = player_row(&buffer, "HookMaster");
+    let thresh = player_row(&buffer, "Thresh");
     assert!(
-        thresh.contains("Locket of the Iron Solari"),
-        "intact items survive: {thresh}"
+        thresh.contains("SUP") && thresh.contains("Thresh"),
+        "intact identity survives: {thresh}"
     );
 }
 
@@ -272,13 +250,13 @@ fn partial_fields_degrade_explicitly_and_only_where_absent() {
 /// timer ABSENT it prints an unknown marker instead of any derived countdown.
 #[test]
 fn dead_player_without_exposed_timer_shows_unknown_marker_never_a_countdown() {
-    // Exposed value first: full.json Lee Sin, DEAD(respawn 12.5).
+    // Exposed value first: full.json Lee Sin, DEAD 12s (12.5 truncated).
     let buffer = draw(&live_app_with("full"));
-    let exposed = player_row(&buffer, "JungleKing");
+    let exposed = player_row(&buffer, "Lee Sin");
     let tag = &exposed[exposed.find("DEAD").expect("death tag")..];
     assert!(
-        tag.starts_with("DEAD(respawn 12.5)"),
-        "verbatim exposed timer: {tag}"
+        tag.starts_with("DEAD 12s"),
+        "exposed timer as whole seconds: {tag}"
     );
 
     // Same player, respawnTimer absent from the payload this time…
@@ -297,10 +275,10 @@ fn dead_player_without_exposed_timer_shows_unknown_marker_never_a_countdown() {
 
     // …must yield an explicit unknown marker, never a computed number.
     let degraded = draw(&app);
-    let row = player_row(&degraded, "JungleKing");
+    let row = player_row(&degraded, "Lee Sin");
     let tag = &row[row.find("DEAD").expect("death tag")..];
     assert!(
-        tag.starts_with("DEAD(respawn ?)"),
+        tag.starts_with("DEAD ?"),
         "unknown marker required, got: {tag}"
     );
 }
@@ -367,4 +345,22 @@ fn missing_local_gold_degrades_and_no_enemy_panel_shows_gold() {
             );
         }
     }
+}
+
+#[test]
+fn scoreboard_header_shows_mode_clock_and_team_kills() {
+    let buffer = draw(&live_app_with("full"));
+    let header = row_text(&buffer, 0);
+    for token in [
+        "LIVE", "CLASSIC", "12:34", "ORDER 23", "20 CHAOS", "DRG 1", "HERALD 1",
+    ] {
+        assert!(
+            header.contains(token),
+            "scoreboard header missing {token:?}: {header}"
+        );
+    }
+    assert!(
+        !header.contains("Gold"),
+        "gold must never appear on the header: {header}"
+    );
 }

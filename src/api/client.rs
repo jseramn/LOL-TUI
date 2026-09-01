@@ -42,16 +42,37 @@ pub const ENDPOINT_GAMESTATS: &str = "/liveclientdata/gamestats";
 /// instead of `NotBound`. Deployment may tune via [`ApiClient::with_fetch_timeout`].
 pub const DEFAULT_FETCH_TIMEOUT: Duration = Duration::from_millis(800);
 
+/// Tunnel / remote poll deadline. Cloudflare/Tailscale hops need more
+/// than the 800 ms loopback window.
+pub const REMOTE_FETCH_TIMEOUT: Duration = Duration::from_millis(3000);
+
+/// Environment variable that opts the binary into a tunneled live URL
+/// (same as `--live-url`). Empty / unset keeps loopback-only behavior.
+pub const LIVE_URL_ENV: &str = "TUI_LOL_LIVE_URL";
+
 /// Vendored Riot Games root certificate (see provenance header inside the
 /// file). This is the ONLY trust anchor: built-in system stores are disabled
 /// so a compromised host store can never widen trust (poller:R1).
 const RIOT_ROOT_PEM: &[u8] = include_bytes!("../../assets/riotgames.pem");
 
-/// Blocking HTTPS client pinned to the Riot root certificate.
+/// Where the client sends `/liveclientdata/*` requests.
+#[derive(Debug, Clone)]
+enum Target {
+    /// Spec-pinned local game client (`https://127.0.0.1:2999`).
+    Loopback { port: u16 },
+    /// Opt-in tunnel or replay base, e.g. `https://….trycloudflare.com`.
+    /// Trailing slashes are stripped; paths are appended as-is.
+    Remote { base: String },
+}
+
+/// Blocking HTTPS client. The default constructor is loopback-only and
+/// pinned to the Riot root; [`ApiClient::remote`] is the explicit cloud/dev
+/// override that trusts the public web PKI (Cloudflare/Tailscale certs).
 #[derive(Debug, Clone)]
 pub struct ApiClient {
     host: String,
     port: u16,
+    target: Target,
     http: reqwest::blocking::Client,
 }
 
@@ -93,8 +114,70 @@ impl ApiClient {
         Ok(Self {
             host: host.to_owned(),
             port,
+            target: Target::Loopback { port },
             http,
         })
+    }
+
+    /// Opt-in client for a tunneled or replay Live Client Data base URL.
+    ///
+    /// Default [`ApiClient::new`] stays loopback-only (poller spec R1).
+    /// This constructor is the cloud-dev seam: `--live-url` /
+    /// [`LIVE_URL_ENV`]. TLS uses the public web PKI so Cloudflare/Tailscale
+    /// certificates validate; HTTP bases skip TLS entirely.
+    ///
+    /// # Errors
+    /// [`BuildError::InvalidLiveUrl`] when the value is not `http`/`https`
+    /// or has no host.
+    pub fn remote(base: &str) -> Result<Self, BuildError> {
+        Self::remote_with_timeout(base, REMOTE_FETCH_TIMEOUT)
+    }
+
+    /// Like [`ApiClient::remote`] with an explicit per-request deadline.
+    pub fn remote_with_timeout(base: &str, timeout: Duration) -> Result<Self, BuildError> {
+        let parsed =
+            reqwest::Url::parse(base.trim()).map_err(|err| BuildError::InvalidLiveUrl {
+                detail: err.to_string(),
+            })?;
+        let scheme = parsed.scheme();
+        if scheme != "https" && scheme != "http" {
+            return Err(BuildError::InvalidLiveUrl {
+                detail: format!("unsupported scheme {scheme:?} (need http or https)"),
+            });
+        }
+        let host = parsed
+            .host_str()
+            .ok_or_else(|| BuildError::InvalidLiveUrl {
+                detail: "URL has no host".into(),
+            })?
+            .to_owned();
+        let port = parsed.port_or_known_default().unwrap_or(443);
+        let mut http = reqwest::blocking::Client::builder().timeout(timeout);
+        if scheme == "https" {
+            // Public CA store: trycloudflare / Tailscale Funnel certs.
+            http = http.tls_built_in_root_certs(true);
+        }
+        let http = http
+            .build()
+            .expect("reqwest client builder cannot fail with these options");
+        let base = base.trim().trim_end_matches('/').to_owned();
+        Ok(Self {
+            host,
+            port,
+            target: Target::Remote { base },
+            http,
+        })
+    }
+
+    /// Loopback when `base` is empty/absent; [`ApiClient::remote`] otherwise.
+    ///
+    /// # Errors
+    /// Propagates [`BuildError`] from the chosen constructor.
+    pub fn from_optional_base(base: Option<&str>) -> Result<Self, BuildError> {
+        match base.map(str::trim).filter(|value| !value.is_empty()) {
+            None => Self::new(LOOPBACK_HOST, LIVE_CLIENT_PORT),
+            Some(url) => Self::remote(url),
+        }
     }
 
     pub fn host(&self) -> &str {
@@ -105,9 +188,18 @@ impl ApiClient {
         self.port
     }
 
-    /// Builds the exact loopback HTTPS URL for an endpoint path.
+    /// True when this client talks to a tunneled/remote base rather than
+    /// the spec-pinned loopback game client.
+    pub fn is_remote(&self) -> bool {
+        matches!(self.target, Target::Remote { .. })
+    }
+
+    /// Builds the request URL for an endpoint path.
     pub fn url(&self, path: &str) -> String {
-        format!("https://{}:{}{}", self.host, self.port, path)
+        match &self.target {
+            Target::Loopback { port } => format!("https://{}:{port}{path}", self.host),
+            Target::Remote { base } => format!("{base}{path}"),
+        }
     }
 
     /// Performs one GET against an endpoint path and returns the body.
