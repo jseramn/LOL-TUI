@@ -1,13 +1,12 @@
-# One-shot live TUI launcher (Windows). Locates the repo from this script
+﻿# One-shot live TUI launcher (Windows). Locates the repo from this script
 # path, optionally git-pulls main, applies the windows-gnu env, then
-# `cargo run -j 1` so rustc does not OOM the pagefile.
+# cargo run -j 1 so rustc does not OOM the pagefile.
 #
 # From ANY directory (update + start):
 #   powershell -ExecutionPolicy Bypass -File E:\dev\TUI-LOL\LOL-TUI\scripts\run-live.ps1 -Pull
 #
-# Already in the repo, current PowerShell (PS7 or 5.1):
+# Already in the repo:
 #   powershell -ExecutionPolicy Bypass -File scripts\run-live.ps1
-#   pwsh -NoProfile -ExecutionPolicy Bypass -File scripts\run-live.ps1
 #
 # If you are NOT in a match, this script prints a diagnosis and starts the
 # offline demo automatically. Force demo: -Replay. Refuse demo: -LiveOnly.
@@ -101,8 +100,16 @@ function Write-Diagnosis {
 
     $cargo = Get-Command cargo -ErrorAction SilentlyContinue
     $rustc = Get-Command rustc -ErrorAction SilentlyContinue
-    Write-Host ("cargo      {0}" -f $(if ($cargo) { $cargo.Source } else { "NO encontrado (hace falta E:\rust\cargo\bin)" }))
-    Write-Host ("rustc      {0}" -f $(if ($rustc) { $rustc.Source } else { "NO encontrado" }))
+    if ($cargo) {
+        Write-Host ("cargo      {0}" -f $cargo.Source)
+    } else {
+        Write-Host "cargo      NO encontrado (hace falta E:\rust\cargo\bin)"
+    }
+    if ($rustc) {
+        Write-Host ("rustc      {0}" -f $rustc.Source)
+    } else {
+        Write-Host "rustc      NO encontrado"
+    }
     if (Test-Path "E:\w64devkit\w64devkit\bin\dlltool.exe") {
         Write-Host "dlltool    E:\w64devkit\w64devkit\bin\dlltool.exe"
     } else {
@@ -110,7 +117,11 @@ function Write-Diagnosis {
     }
 
     $tcp = Test-TcpPortOpen
-    Write-Host ("puerto 2999 TCP  {0}" -f $(if ($tcp) { "abierto" } else { "cerrado" }))
+    if ($tcp) {
+        Write-Host "puerto 2999 TCP  abierto"
+    } else {
+        Write-Host "puerto 2999 TCP  cerrado"
+    }
     $stats = $null
     if ($tcp) {
         $stats = Get-LiveStatsProbe
@@ -118,7 +129,7 @@ function Write-Diagnosis {
     if ($stats) {
         Write-Host ("liveclient      READY  modo={0} reloj={1} mapa={2}" -f $stats.gameMode, $stats.gameTime, $stats.mapName)
     } else {
-        Write-Host "liveclient      DOWN — Riot solo abre 127.0.0.1:2999 DENTRO del mapa, no en lobby ni en seleccion."
+        Write-Host "liveclient      DOWN - Riot solo abre 127.0.0.1:2999 DENTRO del mapa, no en lobby ni en seleccion."
     }
     Write-Host "=== fin diagnostico ==="
     Write-Host ""
@@ -134,7 +145,7 @@ Set-Location $repoRoot
 Enable-WindowsGnuToolchain
 
 if ($Pull) {
-    Write-Host "repo $repoRoot — checkout + pull main"
+    Write-Host "repo $repoRoot - checkout + pull main"
     git checkout main
     if ($LASTEXITCODE -ne 0) { throw "git checkout main failed" }
     git pull origin main
@@ -151,7 +162,7 @@ function Start-Tui {
     param([string[]]$CargoArgs)
     $cargo = Get-Command cargo -ErrorAction SilentlyContinue
     if (-not $cargo) {
-        Write-Host "cargo no esta en PATH. Instala rust en E:\rust o abre el terminal donde `cargo --version` funcione."
+        Write-Host "cargo no esta en PATH. Instala rust en E:\rust o abre el terminal donde cargo --version funcione."
         exit 1
     }
     Write-Host ("arrancando: cargo run -j 1 {0}" -f ($CargoArgs -join " "))
@@ -160,13 +171,15 @@ function Start-Tui {
     exit $LASTEXITCODE
 }
 
+$replayArgs = @("replay", "tests/fixtures/allgamedata/full.json")
+
 if ($Replay) {
     Write-Host "Modo demo (fixture offline, no hace falta LoL)."
-    Start-Tui -CargoArgs @("replay", "tests/fixtures/allgamedata/full.json")
+    Start-Tui -CargoArgs $replayArgs
 }
 
 if ($liveOk) {
-    Write-Host "Partida detectada — TUI en vivo."
+    Write-Host "Partida detectada - TUI en vivo."
     Start-Tui -CargoArgs @()
 }
 
@@ -177,4 +190,4 @@ if ($LiveOnly) {
 }
 
 Write-Host "Arranco la DEMO para que veas la herramienta. Cuando estes EN el mapa, corre el mismo comando otra vez."
-Start-Tui -CargoArgs @("replay", "tests/fixtures/allgamedata/full.json")
+Start-Tui -CargoArgs $replayArgs
