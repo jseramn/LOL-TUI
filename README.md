@@ -10,7 +10,7 @@ PowerShell, **ya en partida** (no lobby). Desde cualquier carpeta:
 cd E:\dev\TUI-LOL\LOL-TUI; git checkout main; git pull; powershell -ExecutionPolicy Bypass -File scripts\run-live.ps1
 ```
 
-Salir: **`q`** o **`Esc`**. Sin LoL: añade `-Replay` al archivo (`scripts\run-live.ps1 -Replay`).
+Si no hay partida, el script **diagnostica** y arranca la demo sola. Salir: **`q`** o **`Esc`**. Solo demo: `-Replay`. Solo live (sin demo): `-LiveOnly`.
 
 Próximas veces (después de ese `git pull`):
 
