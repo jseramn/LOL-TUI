@@ -67,6 +67,7 @@ fn snapshot_normalizes_full_fixture() {
     assert_eq!(game.game_mode.as_deref(), Some("CLASSIC"));
     assert_eq!(game.game_time, Some(754.19));
     assert_eq!(game.map_name.as_deref(), Some("Map11"));
+    assert_eq!(game.map_number, Some(1));
 
     let local = snap.local.as_ref().expect("local player normalized");
     assert_eq!(local.champion.as_deref(), Some("Ahri"));

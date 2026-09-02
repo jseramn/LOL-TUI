@@ -28,8 +28,9 @@
 //!   so [`Glyph::LightShade`] is passed explicitly to keep poll gaps
 //!   visible. The default `NINE_LEVELS` ramp (`▁▂▃▄▅▆▇█`) is fully
 //!   whitelisted; auto-max over present samples applies when `.max()` is
-//!   unset (lines 359–361). Data renders front-first, which is why the
-//!   window is trimmed to its newest slice before drawing.
+//!   unset (lines 359–361). Data renders front-first, so the window is
+//!   trimmed to its newest slice and that slice is drawn right-aligned
+//!   (newest gold at the right edge) without padding `None` gaps.
 //!
 //! Implemented in Phase 4 (tasks 4.6–4.7).
 
@@ -142,12 +143,15 @@ where
         return;
     }
 
-    // Trim to the freshest slice that fits: the Sparkline draws data
-    // front-first, so feeding the raw window would pin the chart to the
-    // oldest samples once history outgrew the chart width.
+    // Trim to the freshest slice that fits, then right-align it: Sparkline
+    // draws data front-first, so a short live attach would otherwise pin
+    // two to ten bars to the LEFT of a ~70-cell row. Do not pad with None —
+    // those render as light-shade gaps.
     let label_cells = GOLD_LABEL_CELLS.min(row.width as usize);
     let chart_width = row.width as usize - label_cells;
     let start = window.len().saturating_sub(chart_width);
+    let data = &window[start..];
+    let drawn = data.len().min(chart_width);
     frame.render_widget(
         paragraph_of("oro "),
         Rect {
@@ -155,13 +159,16 @@ where
             ..row
         },
     );
+    if drawn == 0 {
+        return;
+    }
     frame.render_widget(
         Sparkline::default()
-            .data(&window[start..])
+            .data(data)
             .absent_value_symbol(Glyph::LightShade.symbol()),
         Rect {
-            x: row.x + label_cells as u16,
-            width: row.width - label_cells as u16,
+            x: row.x + label_cells as u16 + (chart_width as u16 - drawn as u16),
+            width: drawn as u16,
             ..row
         },
     );

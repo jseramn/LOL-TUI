@@ -70,7 +70,7 @@ pub fn role_label(raw: Option<&str>) -> Option<&'static str> {
 pub fn game_mode_name(raw: &str) -> String {
     match raw.trim().to_ascii_uppercase().as_str() {
         "CLASSIC" => "Clasica".to_owned(),
-        "ARAM" => "Abismo".to_owned(),
+        "ARAM" | "KIWI" | "KINGPORO" => "Abismo".to_owned(),
         "URF" => "Ultra rapido".to_owned(),
         "ONEFORALL" => "Uno para todos".to_owned(),
         "NEXUSBLITZ" => "Asalto al nexo".to_owned(),
@@ -80,6 +80,30 @@ pub fn game_mode_name(raw: &str) -> String {
         "SWIFTPLAY" => "Rapida".to_owned(),
         _ => raw.to_owned(),
     }
+}
+
+/// Howling Abyss / single-lane queues: no calle, no farm-8, no roles TOP/JNG.
+pub fn is_single_lane(
+    game_mode: Option<&str>,
+    map_name: Option<&str>,
+    map_number: Option<u32>,
+) -> bool {
+    if let Some(mode) = game_mode {
+        match mode.trim().to_ascii_uppercase().as_str() {
+            "ARAM" | "KIWI" | "KINGPORO" | "ASCENSION" => return true,
+            _ => {}
+        }
+    }
+    if map_number == Some(12) {
+        return true;
+    }
+    if let Some(name) = map_name {
+        let upper = name.trim().to_ascii_uppercase();
+        if upper == "MAP12" || upper.contains("HOWLING") || upper.contains("ABYSS") {
+            return true;
+        }
+    }
+    false
 }
 
 /// Local strip: `Tu {champ} nivel {n}  oro {g}  Vida a/b  mana a/b  QWER`

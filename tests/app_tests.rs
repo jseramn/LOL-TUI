@@ -308,6 +308,7 @@ fn gold_snap(mode: Option<&str>, time: Option<f64>, gold: Option<f64>) -> Snapsh
             game_mode: Some(mode.to_owned()),
             game_time: time,
             map_name: None,
+            map_number: None,
             game_id: None,
         }),
         events: Vec::new(),

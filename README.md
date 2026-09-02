@@ -40,7 +40,7 @@ Pega al agente la línea `TUI_LOL_LIVE_URL=https://....trycloudflare.com`. **Nun
 
 > El puerto `https://127.0.0.1:2999` solo responde **durante la partida**.  
 > El oro solo aparece en tu franja (la línea que empieza por **Tú**); el resto de paneles no muestran oro.  
-> Cabecera con reloj `mm:ss` y un briefing de hasta tres frases: brecha de carril, control de objetivos y ventana si alguien está muerto. Cartas en español (rol, nivel, súbditos) y sucesos recientes arriba. Sin acrónimos de estadísticas.
+> Cabecera con reloj `mm:ss` y un briefing de hasta tres frases: brecha de carril, control de objetivos y ventana si alguien está muerto (en Abismo: pelea y eliminaciones, no calle). Cartas en español (rol, nivel, súbditos) y sucesos recientes arriba. Sin acrónimos de estadísticas.
 
 ## Clonar y usar main
 

@@ -100,6 +100,8 @@ pub struct GameInfo {
     pub game_mode: Option<String>,
     pub game_time: Option<f64>,
     pub map_name: Option<String>,
+    /// Live Client `mapNumber` as exposed; Map12 is Howling Abyss.
+    pub map_number: Option<u32>,
     pub game_id: Option<u64>,
 }
 
@@ -338,6 +340,7 @@ impl Snapshot {
                 game_mode: g.game_mode.clone(),
                 game_time: g.game_time,
                 map_name: g.map_name.clone(),
+                map_number: g.map_number,
                 game_id: g.game_id,
             }),
             events: data

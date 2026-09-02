@@ -10,6 +10,19 @@ fn role_helpers_use_spanish_words() {
     assert_eq!(format::role_label(Some("UTILITY")), Some("Soporte"));
     assert_eq!(format::game_mode_name("CLASSIC"), "Clasica");
     assert_eq!(format::game_mode_name("ARAM"), "Abismo");
+    assert_eq!(format::game_mode_name("KIWI"), "Abismo");
+    assert_eq!(format::game_mode_name("KINGPORO"), "Abismo");
+    assert!(format::is_single_lane(
+        Some("KIWI"),
+        Some("Map12"),
+        Some(12)
+    ));
+    assert!(!format::is_single_lane(
+        Some("CLASSIC"),
+        Some("Map11"),
+        Some(11)
+    ));
+    assert!(format::is_single_lane(Some("ARAM"), None, None));
 }
 
 #[test]

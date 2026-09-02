@@ -323,6 +323,7 @@ fn snapshot_with_gold(gold: Option<f64>, game_time: f64) -> Snapshot {
             game_mode: Some("classic".to_owned()),
             game_time: Some(game_time),
             map_name: None,
+            map_number: None,
             game_id: None,
         }),
         events: Vec::new(),
@@ -476,6 +477,48 @@ fn sparkline_tracks_the_newest_samples_beyond_the_chart_width() {
     );
 }
 
+/// Mid-game attach has only a handful of samples: they must cluster on the
+/// RIGHT of the chart (newest gold at the edge), with leading empty cells
+/// after `oro ` — never a left-pinned stub, never `None` padding.
+#[test]
+fn sparkline_right_aligns_a_short_live_window() {
+    let app = app_with_gold_series(&[Some(100.0), Some(400.0), Some(900.0)]);
+    let row = unique_gold_row(&draw(&app));
+    assert!(
+        !row.contains("calentando"),
+        "three real samples must draw a trend: {row:?}"
+    );
+    let chart: Vec<char> = row.chars().skip("oro ".len()).collect();
+    let glyphs: Vec<(usize, char)> = chart
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| SPARKLINE_LEVELS.contains(&c.to_string().as_str()))
+        .map(|(i, c)| (i, *c))
+        .collect();
+    assert!(glyphs.len() >= 2, "short series still draws bars: {row:?}");
+    let first_bar = glyphs[0].0;
+    let last_bar = glyphs.last().expect("bars").0;
+    assert!(
+        first_bar > chart.len() / 2,
+        "few samples must sit in the right half, not the left: first_bar={first_bar} len={} {row:?}",
+        chart.len()
+    );
+    assert_eq!(
+        last_bar,
+        chart.len() - 1,
+        "newest gold sits on the right edge: {row:?}"
+    );
+    assert!(
+        chart.iter().take(first_bar).all(|c| *c == ' '),
+        "do not pad the left with absent-value shades: {row:?}"
+    );
+    assert_eq!(
+        row.chars().filter(|c| *c == '\u{2591}').count(),
+        0,
+        "short real series must not invent poll-gap shades: {row:?}"
+    );
+}
+
 /// Glyph-safety net scoped to the new family (viz:R1/S2): with gauges, a
 /// gapped trend, and placeholder rows all on screen, every local-strip row
 /// carries whitelisted codepoints or printable ASCII only.
@@ -500,6 +543,7 @@ fn local_strip_rows_stay_within_the_glyph_whitelist() {
             game_mode: Some("classic".to_owned()),
             game_time: Some(80.0),
             map_name: None,
+            map_number: None,
             game_id: None,
         }),
         events: Vec::new(),
