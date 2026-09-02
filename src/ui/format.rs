@@ -106,10 +106,11 @@ pub fn is_single_lane(
     false
 }
 
-/// Local strip: `Tu {champ} nivel {n}  oro {g}  Vida a/b  mana a/b  QWER`
+/// Local strip: `Tu {champ}  nivel {n}  oro {g}  QWER`
 ///
 /// Gold only here (ui spec R4). Integers so the line is readable in-game.
-/// Q/W/E/R are the ability keys on the keyboard, not stat acronyms.
+/// HP / mana numbers live on the gauges, not this line. Q/W/E/R are the
+/// ability keys on the keyboard, not stat acronyms.
 pub fn local_line(local: &LocalPlayerSnapshot) -> String {
     let mut line = String::from("Tu");
     push_part(&mut line, local.champion.as_deref());
@@ -125,17 +126,6 @@ pub fn local_line(local: &LocalPlayerSnapshot) -> String {
 
     line.push_str("  oro ");
     line.push_str(&pretty_opt_f64(local.current_gold));
-
-    if let Some(stats) = &local.stats {
-        line.push_str("  Vida ");
-        line.push_str(&pretty_opt_f64(stats.current_health));
-        line.push('/');
-        line.push_str(&pretty_opt_f64(stats.max_health));
-        line.push_str("  mana ");
-        line.push_str(&pretty_opt_f64(stats.power));
-        line.push('/');
-        line.push_str(&pretty_opt_f64(stats.power_max));
-    }
 
     if let Some(abilities) = &local.abilities {
         line.push_str("  ");
@@ -162,21 +152,25 @@ fn push_rank(line: &mut String, letter: char, rank: Option<u32>) {
 /// death window still fits a ~40-cell team column.
 pub fn player_line_for_width(p: &PlayerSnapshot, column_width: u16) -> String {
     let max = column_width as usize;
+    let numbered = |line: String| line.replace(" subditos", "");
     for line in [
-        player_card(p, true, true, true, true, true, "  "),
-        player_card(p, true, true, true, true, true, " "),
-        player_card(p, true, true, false, true, true, " "),
-        player_card(p, true, true, false, true, false, " "),
-        player_card(p, false, true, false, true, false, " "),
-        player_card(p, true, false, false, true, false, " "),
-        player_card(p, false, false, false, false, true, " "),
-        player_card(p, false, false, false, false, false, " "),
+        player_card(p, true, true, true, true, "  "),
+        player_card(p, true, true, true, true, " "),
+        numbered(player_card(p, true, true, true, true, " ")),
+        player_card(p, true, true, false, true, " "),
+        numbered(player_card(p, true, true, false, true, " ")),
+        player_card(p, false, true, true, true, " "),
+        numbered(player_card(p, false, true, true, true, " ")),
+        player_card(p, false, true, false, true, " "),
+        numbered(player_card(p, false, true, false, true, " ")),
+        player_card(p, true, false, false, true, " "),
+        player_card(p, false, false, false, false, " "),
     ] {
         if max == 0 || line.chars().count() <= max {
             return line;
         }
     }
-    let fallback = player_card(p, false, false, false, false, false, " ");
+    let fallback = player_card(p, false, false, false, false, " ");
     if max == 0 {
         return fallback;
     }
@@ -193,7 +187,7 @@ pub fn pretty_secs(value: f64) -> String {
 
 /// Full roster card in Spanish (dump / wide columns).
 pub fn player_line_compact(p: &PlayerSnapshot) -> String {
-    player_card(p, true, true, true, true, true, "  ")
+    player_card(p, true, true, true, true, "  ")
 }
 
 fn player_card(
@@ -202,7 +196,6 @@ fn player_card(
     show_level: bool,
     show_kda: bool,
     show_cs: bool,
-    long_death: bool,
     gap: &str,
 ) -> String {
     let mut line = String::with_capacity(64);
@@ -245,9 +238,7 @@ fn player_card(
             Some(timer) if timer.is_finite() => {
                 line.push(' ');
                 line.push_str(&pretty_secs(timer));
-                if long_death {
-                    line.push_str(" segundos");
-                }
+                line.push('s');
             }
             _ => {
                 line.push(' ');

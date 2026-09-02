@@ -40,7 +40,7 @@ Pega al agente la línea `TUI_LOL_LIVE_URL=https://....trycloudflare.com`. **Nun
 
 > El puerto `https://127.0.0.1:2999` solo responde **durante la partida**.  
 > El oro solo aparece en tu franja (la línea que empieza por **Tú**); el resto de paneles no muestran oro.  
-> Cabecera con reloj `mm:ss` y un briefing de hasta tres frases: brecha de carril, control de objetivos y ventana si alguien está muerto (en Abismo: pelea y eliminaciones, no calle). Cartas en español (rol, nivel, súbditos) y sucesos recientes arriba. Sin acrónimos de estadísticas.
+> La vista en vivo es un dashboard curado (marcador, consejo etiquetado, roster compacto, sucesos clave), no un volcado de cada eliminacion. Cabecera con reloj `mm:ss` y hasta tres frases etiquetadas (CALLE / AHORA / TU): brecha de carril y ventana si un enemigo esta muerto (en Abismo: pelea y eliminaciones, no calle). Cartas en espanol (rol, nivel, subditos) y sucesos clave con nombres de campeon. Sin acronimos de estadisticas.
 
 ## Clonar y usar main
 

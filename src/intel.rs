@@ -6,17 +6,21 @@
 //!   ~8 subditos/minuto for solo lanes on Summoner's Rift — never on Abismo)
 //! - kill participation as counts (`eliminaciones` / `participas en`), not a
 //!   hidden ratio acronym and never the word `muertes`
-//! - objective control by mapping event killers onto the roster team
 //! - lane gaps by pairing the same role on Orden vs Caos (Rift only)
 //!
 //! Map branching: CLASSIC / multi-lane queues keep carril gaps, farm-8, and
-//! "ventana para presionar ese carril". Howling Abyss (ARAM / KIWI /
-//! KINGPORO / map 12) talks about pelea (alive vs alive) and eliminaciones
-//! — never calle, farm-8, or carril.
+//! an enemy death window ("presiona ese carril"). Howling Abyss (ARAM /
+//! KIWI / KINGPORO / map 12) talks about pelea (alive vs alive) and
+//! eliminaciones — never calle, farm-8, or carril.
+//!
+//! Each live line starts with a 5-char ASCII tag (`CALLE`, `AHORA`, `TU`,
+//! `MAPA`, `MARCA`). Objective totals stay on the scoreboard header, not
+//! repeated in the briefing. Never advise pressing the local player's own
+//! death window.
 //!
 //! Never invents enemy gold, damage share, or unexposed timers.
 
-use crate::model::snapshot::{GameEvent, PlayerSnapshot, Snapshot, Team};
+use crate::model::snapshot::{PlayerSnapshot, Snapshot, Team};
 use crate::ui::format::{self, pretty_int, pretty_secs};
 
 /// At most three decision lines — overlays recommend 3–4 live stats, not a wall.
@@ -37,12 +41,13 @@ pub fn briefing(snapshot: &Snapshot) -> Vec<String> {
     }
 }
 
+fn tagged(tag: &str, body: &str) -> String {
+    format!("{tag:<5} {body}")
+}
+
 fn briefing_rift(snapshot: &Snapshot) -> Vec<String> {
     let mut lines = Vec::new();
     if let Some(line) = biggest_lane_gap(snapshot) {
-        lines.push(line);
-    }
-    if let Some(line) = objective_control(snapshot) {
         lines.push(line);
     }
     if let Some(line) = death_pressure(snapshot) {
@@ -66,11 +71,6 @@ fn briefing_single_lane(snapshot: &Snapshot) -> Vec<String> {
     }
     if lines.len() < MAX_LINES {
         if let Some(line) = local_impact(snapshot) {
-            lines.push(line);
-        }
-    }
-    if lines.len() < MAX_LINES {
-        if let Some(line) = objective_control(snapshot) {
             lines.push(line);
         }
     }
@@ -160,21 +160,6 @@ fn local_roster_player(snapshot: &Snapshot) -> Option<&PlayerSnapshot> {
         .find(|player| player.champion.as_deref() == Some(champ_name))
 }
 
-fn lookup_team(snapshot: &Snapshot, name: Option<&str>) -> Option<Team> {
-    let name = name?;
-    snapshot.players.iter().find_map(|player| {
-        let hit = player
-            .summoner_name
-            .as_deref()
-            .is_some_and(|summoner| summoner.eq_ignore_ascii_case(name))
-            || player
-                .champion
-                .as_deref()
-                .is_some_and(|champion| champion.eq_ignore_ascii_case(name));
-        if hit { player.team } else { None }
-    })
-}
-
 fn biggest_lane_gap(snapshot: &Snapshot) -> Option<String> {
     let mut best: Option<(f64, String)> = None;
     for role in ["TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"] {
@@ -230,146 +215,94 @@ fn biggest_lane_gap(snapshot: &Snapshot) -> Option<String> {
         line.push('.');
         match &best {
             Some((best_gap, _)) if *best_gap >= gap => {}
-            _ => best = Some((gap, line)),
+            _ => best = Some((gap, tagged("CALLE", &line))),
         }
     }
     best.map(|(_, line)| line)
 }
 
-fn objective_control(snapshot: &Snapshot) -> Option<String> {
-    let mut order_drag = 0u32;
-    let mut chaos_drag = 0u32;
-    let mut order_herald = 0u32;
-    let mut chaos_herald = 0u32;
-    let mut order_baron = 0u32;
-    let mut chaos_baron = 0u32;
-    let mut order_tower = 0u32;
-    let mut chaos_tower = 0u32;
-    let mut order_horde = 0u32;
-    let mut chaos_horde = 0u32;
-    let mut any = false;
-
-    let bump = |team: Option<Team>, order: &mut u32, chaos: &mut u32| match team {
-        Some(Team::Order) => {
-            *order += 1;
-            true
-        }
-        Some(Team::Chaos) => {
-            *chaos += 1;
-            true
-        }
-        None => false,
-    };
-
-    for event in &snapshot.events {
-        match event {
-            GameEvent::DragonKill { killer, .. } => {
-                any |= bump(
-                    lookup_team(snapshot, killer.as_deref()),
-                    &mut order_drag,
-                    &mut chaos_drag,
-                );
-            }
-            GameEvent::HeraldKill { killer, .. } => {
-                any |= bump(
-                    lookup_team(snapshot, killer.as_deref()),
-                    &mut order_herald,
-                    &mut chaos_herald,
-                );
-            }
-            GameEvent::BaronKill { killer, .. } => {
-                any |= bump(
-                    lookup_team(snapshot, killer.as_deref()),
-                    &mut order_baron,
-                    &mut chaos_baron,
-                );
-            }
-            GameEvent::TurretKilled { killer, .. } => {
-                any |= bump(
-                    lookup_team(snapshot, killer.as_deref()),
-                    &mut order_tower,
-                    &mut chaos_tower,
-                );
-            }
-            GameEvent::HordeKill { killer, .. } => {
-                any |= bump(
-                    lookup_team(snapshot, killer.as_deref()),
-                    &mut order_horde,
-                    &mut chaos_horde,
-                );
-            }
-            _ => {}
-        }
-    }
-
-    if !any && order_drag + chaos_drag + order_tower + chaos_tower == 0 {
-        return None;
-    }
-
-    let side = |order: u32, chaos: u32, one: &str, many: &str| -> Option<String> {
-        if order == 0 && chaos == 0 {
-            return None;
-        }
-        let noun = |n: u32| if n == 1 { one } else { many };
-        if order == chaos {
-            return Some(format!("empate en {} ({order} cada uno)", noun(order)));
-        }
-        let (team, n) = if order > chaos {
-            ("Orden", order)
-        } else {
-            ("Caos", chaos)
-        };
-        Some(format!("{team} lleva {n} {}", noun(n)))
-    };
-
-    let mut parts = Vec::new();
-    if let Some(part) = side(order_drag, chaos_drag, "dragon", "dragones") {
-        parts.push(part);
-    }
-    if let Some(part) = side(order_herald, chaos_herald, "heraldo", "heraldos") {
-        parts.push(part);
-    }
-    if let Some(part) = side(order_baron, chaos_baron, "baron", "barones") {
-        parts.push(part);
-    }
-    if let Some(part) = side(order_tower, chaos_tower, "torre", "torres") {
-        parts.push(part);
-    }
-    if let Some(part) = side(order_horde, chaos_horde, "gusarapo", "gusarapos") {
-        parts.push(part);
-    }
-    if parts.is_empty() {
-        return None;
-    }
-    let mut line = parts.join(". ");
-    line.push('.');
-    Some(line)
-}
-
 fn death_pressure(snapshot: &Snapshot) -> Option<String> {
-    let dead: Vec<&PlayerSnapshot> = snapshot
+    if let Some(me) = local_roster_player(snapshot) {
+        if me.is_dead == Some(true) {
+            let timer = match me.respawn_timer {
+                Some(t) if t.is_finite() => format!("{}s", pretty_secs(t)),
+                _ => "?s".to_owned(),
+            };
+            return Some(tagged(
+                "AHORA",
+                &format!("Tu muerto {timer} - espera a revivir."),
+            ));
+        }
+    }
+
+    let local_team = local_roster_player(snapshot).and_then(|player| player.team);
+    let mut enemies: Vec<&PlayerSnapshot> = snapshot
         .players
         .iter()
         .filter(|player| player.is_dead == Some(true))
+        .filter(|player| !is_local_player(snapshot, player))
+        .filter(|player| match (player.team, local_team) {
+            (Some(team), Some(mine)) => team != mine,
+            _ => true,
+        })
         .collect();
-    if dead.is_empty() {
+    if enemies.is_empty() {
         return None;
     }
-    let pick = dead.iter().max_by_key(|player| {
-        let jungle = u32::from(role_of(player) == Some("jungla"));
-        let kills = player.kills.unwrap_or(0);
-        jungle * 10 + kills
-    })?;
+    enemies.sort_by(|a, b| {
+        let jung = |player: &PlayerSnapshot| u8::from(role_of(player) == Some("jungla"));
+        jung(b)
+            .cmp(&jung(a))
+            .then_with(|| b.kills.unwrap_or(0).cmp(&a.kills.unwrap_or(0)))
+            .then_with(|| timer_millis(b).cmp(&timer_millis(a)))
+    });
+    let pick = enemies.into_iter().next()?;
     let team = pick.team.map(team_word).unwrap_or("su equipo");
     let role = role_of(pick).unwrap_or("campeon");
     let timer = match pick.respawn_timer {
-        Some(t) if t.is_finite() => format!("{} segundos", pretty_secs(t)),
-        _ => "tiempo desconocido".to_owned(),
+        Some(t) if t.is_finite() => format!("{}s", pretty_secs(t)),
+        _ => "?s".to_owned(),
     };
-    Some(format!(
-        "{} ({role} de {team}) muerto {timer}: ventana para presionar ese carril.",
-        champ(pick)
+    Some(tagged(
+        "AHORA",
+        &format!(
+            "{} ({role} de {team}) muerto {timer} - presiona ese carril.",
+            champ(pick)
+        ),
     ))
+}
+
+fn is_local_player(snapshot: &Snapshot, player: &PlayerSnapshot) -> bool {
+    if let Some(me) = local_roster_player(snapshot) {
+        if std::ptr::eq(me, player) {
+            return true;
+        }
+        if let (Some(a), Some(b)) = (me.summoner_name.as_deref(), player.summoner_name.as_deref()) {
+            if a.eq_ignore_ascii_case(b) {
+                return true;
+            }
+        }
+        if let (Some(a), Some(b)) = (me.champion.as_deref(), player.champion.as_deref()) {
+            if a.eq_ignore_ascii_case(b) {
+                return true;
+            }
+        }
+    }
+    if let Some(champ_name) = snapshot
+        .local
+        .as_ref()
+        .and_then(|local| local.champion.as_deref())
+        .filter(|name| !name.is_empty())
+    {
+        if player
+            .champion
+            .as_deref()
+            .is_some_and(|name| name.eq_ignore_ascii_case(champ_name))
+        {
+            return true;
+        }
+    }
+    false
 }
 
 fn alive_count(snapshot: &Snapshot, team: Team) -> u32 {
@@ -406,7 +339,7 @@ fn fight_window(snapshot: &Snapshot) -> Option<String> {
             ));
         }
     }
-    Some(line)
+    Some(tagged("AHORA", &line))
 }
 
 fn fight_mention<'a>(
@@ -468,9 +401,9 @@ fn team_score_gap(snapshot: &Snapshot) -> Option<String> {
     } else {
         ("Caos", chaos - order)
     };
-    Some(format!(
-        "{ahead} va {gap} {} por delante.",
-        eliminaciones(gap)
+    Some(tagged(
+        "MARCA",
+        &format!("{ahead} va {gap} {} por delante.", eliminaciones(gap)),
     ))
 }
 
@@ -498,10 +431,13 @@ fn fed_threat(snapshot: &Snapshot) -> Option<String> {
         return None;
     }
     let team = threat.team.map(team_word)?;
-    Some(format!(
-        "{} ({team}) va por delante ({kills} {}).",
-        champ(threat),
-        eliminaciones(kills)
+    Some(tagged(
+        "MARCA",
+        &format!(
+            "{} ({team}) va por delante ({kills} {}).",
+            champ(threat),
+            eliminaciones(kills)
+        ),
     ))
 }
 
@@ -520,7 +456,7 @@ fn local_impact(snapshot: &Snapshot) -> Option<String> {
     let team_total = team_kills(snapshot, team)?;
     let (involved, total) = participation(me, team_total)?;
     let mut line = format!(
-        "Tu ({champ_name}): participas en {involved} de las {total} eliminaciones de {}",
+        "{champ_name}: participas en {involved} de las {total} eliminaciones de {}",
         team_word(team)
     );
     let mut extra = String::new();
@@ -531,9 +467,11 @@ fn local_impact(snapshot: &Snapshot) -> Option<String> {
             if let Some(rate) = me.creep_score.and_then(|cs| {
                 farm_per_minute(cs, snapshot.game.as_ref().and_then(|g| g.game_time))
             }) {
-                extra.push_str(&format!(" {} subditos por minuto", pretty_int(rate)));
                 if rate + 0.5 < 8.0 {
-                    extra.push_str(" (por debajo de 8, el ritmo de calle se queda corto)");
+                    extra.push_str(&format!(
+                        " {} subditos por minuto (por debajo de 8, el ritmo de calle se queda corto)",
+                        pretty_int(rate)
+                    ));
                 }
             }
         }
@@ -559,7 +497,7 @@ fn local_impact(snapshot: &Snapshot) -> Option<String> {
         line.push_str(&extra);
         line.push('.');
     }
-    Some(line)
+    Some(tagged("TU", &line))
 }
 
 fn opposite_ward(snapshot: &Snapshot, me: &PlayerSnapshot) -> Option<f64> {

@@ -177,7 +177,7 @@ fn canonical_region_order_at_80x24_with_notice_filling_final_row() {
 }
 
 /// live-dashboard-ui R3: canonical 80×24 must show all five players per team
-/// (identity + viz rows) — supports appear as SUP + champion in compact columns.
+/// as identity lines (no per-player viz bars).
 #[test]
 fn canonical_80x24_renders_all_five_players_per_team() {
     let app = live_app_with_snapshot("full");
@@ -187,8 +187,8 @@ fn canonical_80x24_renders_all_five_players_per_team() {
     let mid = buffer.area.width / 2;
 
     assert_eq!(
-        layout.areas.body.height, 11,
-        "canonical viewport pins body to eleven rows for five 2-row cards"
+        layout.areas.body.height, 6,
+        "canonical viewport pins body to six rows for five identity cards"
     );
 
     for (label, champ) in [("Soporte", "Lulu"), ("Soporte", "Thresh")] {
@@ -214,8 +214,8 @@ fn canonical_80x24_renders_all_five_players_per_team() {
         .filter(|&y| row_text(&buffer, y).starts_with("Lv"))
         .count();
     assert_eq!(
-        viz_rows, 5,
-        "five paired visualization rows (one per roster slot) at 80x24"
+        viz_rows, 0,
+        "roster identity lines must not include Lv viz rows at 80x24"
     );
 }
 
@@ -257,12 +257,25 @@ fn canonical_80x24_identity_lines_fit_team_columns() {
             "Caos identity must fit its column on row {y}: {right:?}"
         );
         assert!(
-            left.contains("nivel") && left.contains("subditos"),
+            left.contains("nivel"),
             "compact Orden identity on row {y}: {left:?}"
         );
         assert!(
-            right.contains("nivel") && right.contains("subditos"),
+            right.contains("nivel"),
             "compact Caos identity on row {y}: {right:?}"
+        );
+        assert!(
+            left.contains("subditos") || left.chars().any(|c| c.is_ascii_digit()),
+            "Orden farm/level still numeric on row {y}: {left:?}"
+        );
+        assert!(
+            right.contains("subditos") || right.chars().any(|c| c.is_ascii_digit()),
+            "Caos farm/level still numeric on row {y}: {right:?}"
+        );
+        let gutter = buffer[(mid - 1, y)].symbol();
+        assert_eq!(
+            gutter, " ",
+            "team columns must not glue on row {y}: left={left:?} right={right:?}"
         );
     }
 }
@@ -281,4 +294,52 @@ fn status_row_stays_final_across_degenerate_heights() {
             "height {height}: notice must own the final row, got {status:?}"
         );
     }
+}
+
+/// Tall windows must not grow Sucesos into a wall of kills: the ticker
+/// band stays at most 6 rows and leftover height is empty spacer.
+#[test]
+fn tall_viewport_caps_ticker_band_and_leaves_empty_spacer() {
+    let app = live_app_with_snapshot("full");
+    let buffer = draw_at(&app, 80, 48);
+    let layout = tui_lol::ui::select_layout(Rect::new(0, 0, 80, 48));
+
+    assert!(
+        layout.areas.ticker.height <= tui_lol::ui::MAX_TICKER_HEIGHT,
+        "Sucesos clave must not grow with the terminal: {}",
+        layout.areas.ticker.height
+    );
+    assert_eq!(layout.areas.ticker.height, 6, "full ticker band is 1+5");
+    assert_eq!(layout.areas.status.y, 47, "status stays the last row");
+
+    let spacer_start = layout.areas.ticker.y + layout.areas.ticker.height;
+    let spacer_end = layout.areas.status.y;
+    assert!(
+        spacer_end > spacer_start,
+        "leftover height must sit below the ticker"
+    );
+
+    let mut empty = 0u16;
+    let mut nonempty = 0u16;
+    for y in spacer_start..spacer_end {
+        if row_text(&buffer, y).trim().is_empty() {
+            empty += 1;
+        } else {
+            nonempty += 1;
+        }
+    }
+    assert!(
+        empty > nonempty,
+        "most extra rows must be empty spacer, not extra kills ({empty} empty / {nonempty} filled)"
+    );
+
+    let ticker_text: String = (layout.areas.ticker.y..layout.areas.ticker.bottom())
+        .map(|y| row_text(&buffer, y))
+        .collect();
+    assert!(ticker_text.contains("Sucesos clave"));
+    let kill_lines = ticker_text.matches(" mata ").count();
+    assert!(
+        kill_lines <= 5,
+        "ticker must not list every kill: {ticker_text}"
+    );
 }

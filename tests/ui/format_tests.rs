@@ -98,7 +98,7 @@ fn narrow_column_keeps_the_dead_tag() {
         respawn_timer: Some(12.5),
     };
     let wide = format::player_line(&player);
-    assert!(wide.contains("Muerto 12 segundos"), "full card: {wide}");
+    assert!(wide.contains("Muerto 12s"), "full card: {wide}");
     assert!(!wide.contains("F+D"));
     assert!(!wide.contains("DEAD"));
 
@@ -113,9 +113,36 @@ fn narrow_column_keeps_the_dead_tag() {
     );
     assert!(narrow.contains("Lee Sin"));
     assert!(
-        narrow.contains("nivel") && narrow.contains("subditos"),
+        narrow.contains("nivel") && (narrow.contains("subditos") || narrow.contains("168")),
         "canonical column still shows level and farm: {narrow}"
     );
+}
+
+#[test]
+fn compact_alive_card_keeps_kda_before_dropping_the_farm_word() {
+    let player = PlayerSnapshot {
+        summoner_name: Some("MidMage".into()),
+        champion: Some("Ahri".into()),
+        team: None,
+        position: Some("MIDDLE".into()),
+        level: Some(12),
+        kills: Some(6),
+        deaths: Some(1),
+        assists: Some(7),
+        creep_score: Some(196.0),
+        ward_score: None,
+        items: None,
+        spell_one: None,
+        spell_two: None,
+        is_dead: Some(false),
+        respawn_timer: Some(0.0),
+    };
+    let line = format::player_line_for_width(&player, 39);
+    assert!(
+        line.contains("6/1/7"),
+        "KDA outranks the word subditos when the column is tight: {line}"
+    );
+    assert!(line.contains("Ahri") && line.contains("196"));
 }
 
 #[test]
@@ -124,11 +151,23 @@ fn local_line_uses_integer_gold_and_the_gold_token() {
         champion: Some("Ahri".into()),
         level: Some(12),
         current_gold: Some(4350.0),
-        stats: None,
+        stats: Some(
+            serde_json::from_value(serde_json::json!({
+                "currentHealth": 1875.0,
+                "maxHealth": 2015.0,
+                "power": 940.0,
+                "powerMax": 1120.0
+            }))
+            .expect("local stats"),
+        ),
         abilities: None,
     };
     let line = format::local_line(&local);
     assert!(line.starts_with("Tu Ahri  nivel 12"));
     assert!(line.contains("oro 4350"));
     assert!(!line.contains("4350.0"));
+    assert!(
+        !line.contains("Vida") && !line.contains("1875") && !line.contains("mana"),
+        "HP/mana numbers belong on gauges, not the text line: {line}"
+    );
 }

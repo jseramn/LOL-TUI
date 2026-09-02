@@ -36,6 +36,6 @@ pub fn dump_snapshot(snapshot: &Snapshot) -> String {
         out.push_str(&local_line(local));
         out.push('\n');
     }
-    out.push_str(&ticker::dump_events(&snapshot.events));
+    out.push_str(&ticker::dump_events(snapshot));
     out
 }

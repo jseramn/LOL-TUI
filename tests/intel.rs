@@ -37,12 +37,16 @@ fn full_fixture_briefing_crosses_lane_objectives_and_death_window() {
     let text = lines.join(" ");
     assert!(text.contains("subditos"), "lane farm gap in words: {text}");
     assert!(
-        text.contains("dragon") || text.contains("heraldo") || text.contains("torre"),
-        "objective control in words: {text}"
+        text.contains("CALLE") && text.contains("AHORA") && text.contains("TU"),
+        "briefing lines carry scan tags: {text}"
     );
     assert!(
-        text.contains("muerto") || text.contains("Muerto") || text.contains("ventana"),
+        text.contains("muerto") || text.contains("Muerto") || text.contains("carril"),
         "death window for a decision: {text}"
+    );
+    assert!(
+        !text.contains("lleva 1 dragon") && !text.contains("lleva 1 heraldo"),
+        "header already prints objective totals: {text}"
     );
     assert_no_banned_acronyms(&text);
 }
@@ -56,8 +60,16 @@ fn classic_fixture_still_mentions_carril_in_death_pressure() {
         "Rift death window keeps lane pressure: {text}"
     );
     assert!(
-        text.contains("ventana para presionar ese carril"),
+        text.contains("presiona ese carril"),
         "Rift death_pressure wording is pinned: {text}"
+    );
+    assert!(
+        text.contains("Graves") && text.contains("jungla de Caos"),
+        "enemy jungler is the pressure target: {text}"
+    );
+    assert!(
+        !text.contains("ventana para presionar"),
+        "old untagged wording is gone: {text}"
     );
 }
 
@@ -66,6 +78,82 @@ fn empty_roster_still_returns_a_sentence() {
     let lines = intel::briefing(&Snapshot::default());
     assert_eq!(lines.len(), 1);
     assert!(lines[0].contains("Todavia no hay cruce"));
+}
+
+fn rift_player(
+    champion: &str,
+    team: Team,
+    position: &str,
+    kills: u32,
+    dead: bool,
+    respawn: f64,
+) -> PlayerSnapshot {
+    PlayerSnapshot {
+        summoner_name: Some(champion.to_owned()),
+        champion: Some(champion.to_owned()),
+        team: Some(team),
+        position: Some(position.to_owned()),
+        level: Some(16),
+        kills: Some(kills),
+        deaths: Some(3),
+        assists: Some(5),
+        creep_score: Some(180.0),
+        ward_score: None,
+        items: None,
+        spell_one: None,
+        spell_two: None,
+        is_dead: Some(dead),
+        respawn_timer: Some(respawn),
+    }
+}
+
+#[test]
+fn local_dead_yi_waits_to_revive_instead_of_pressing_own_lane() {
+    let snapshot = Snapshot {
+        players: vec![
+            rift_player("Aatrox", Team::Order, "TOP", 4, false, 0.0),
+            rift_player("Graves", Team::Order, "JUNGLE", 6, true, 12.0),
+            rift_player("Ahri", Team::Order, "MIDDLE", 3, false, 0.0),
+            rift_player("Jinx", Team::Order, "BOTTOM", 5, false, 0.0),
+            rift_player("Lulu", Team::Order, "UTILITY", 1, false, 0.0),
+            rift_player("Darius", Team::Chaos, "TOP", 2, true, 8.0),
+            rift_player("Maestro Yi", Team::Chaos, "JUNGLE", 8, true, 6.0),
+            rift_player("Syndra", Team::Chaos, "MIDDLE", 4, false, 0.0),
+            rift_player("Kai'Sa", Team::Chaos, "BOTTOM", 7, false, 0.0),
+            rift_player("Thresh", Team::Chaos, "UTILITY", 0, false, 0.0),
+        ],
+        local: Some(LocalPlayerSnapshot {
+            champion: Some("Maestro Yi".into()),
+            level: Some(16),
+            current_gold: Some(800.0),
+            stats: None,
+            abilities: None,
+        }),
+        game: Some(GameInfo {
+            game_mode: Some("CLASSIC".into()),
+            game_time: Some(754.0),
+            map_name: Some("Map11".into()),
+            map_number: Some(11),
+            game_id: None,
+        }),
+        events: vec![],
+    };
+
+    let lines = intel::briefing(&snapshot);
+    let text = lines.join(" ");
+    assert!(
+        text.contains("Tu muerto") || (text.contains("espera") && text.contains("revivir")),
+        "local death must tell you to wait: {text}"
+    );
+    assert!(
+        !text.contains("presionar ese carril") && !text.contains("presiona ese carril"),
+        "never advise pressing your own corpse: {text}"
+    );
+    assert!(
+        !(text.contains("Maestro Yi") && text.contains("presiona")),
+        "Yi must not be the pressure target: {text}"
+    );
+    assert_no_banned_acronyms(&text);
 }
 
 fn kiwi_player(

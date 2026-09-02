@@ -36,14 +36,19 @@ const SCORE_HEADER_HEIGHT: u16 = 1;
 /// Scoreboard + three decision sentences (overlays keep 3–4 live cues).
 const INTEL_HEADER_HEIGHT: u16 = 4;
 
-/// Smallest height the default tuple can satisfy exactly: 1 + 5 + 4 + 1.
+/// Smallest height that still hosts header + body + local + a 1-row ticker
+/// without greedy top-down clipping: 1 + 6 + 3 + 1.
 const MIN_REGIONS_HEIGHT: u16 = 11;
 
-/// Body rows required for the team header plus five identity+viz player cards
+/// Body rows required for the team title plus five identity lines
 /// (live-dashboard-ui R3: all 10 panels at the canonical 80×24 anchor).
-const FULL_ROSTER_BODY_HEIGHT: u16 = 11;
+pub const FULL_ROSTER_BODY_HEIGHT: u16 = 6;
 
-/// Local band when the body is pinned: legacy text + health + power (sparkline
+/// On-screen ticker band cap: 1 title + 5 curated events. Never absorbs
+/// leftover terminal height — extra rows stay empty below the band.
+pub const MAX_TICKER_HEIGHT: u16 = 6;
+
+/// Local band when the body is pinned: text + health + power (sparkline
 /// clips; gold may hide at the canonical viewport per viz degradation).
 const PINNED_LOCAL_HEIGHT: u16 = 3;
 
@@ -59,38 +64,46 @@ fn header_rows(rest_height: u16) -> u16 {
     }
 }
 
-fn default_region_constraints(header: u16) -> [Constraint; 4] {
-    [
-        Constraint::Length(header),
-        Constraint::Min(5),
-        Constraint::Length(4),
-        Constraint::Min(1),
-    ]
-}
-
-/// Picks vertical region constraints for `rest` (the frame minus the
-/// reserved status row). When the default tuple would leave the body
-/// shorter than [`FULL_ROSTER_BODY_HEIGHT`], pin the body to eleven rows
-/// and shrink the local band to [`PINNED_LOCAL_HEIGHT`] so Orden and Caos
-/// each host five identity+viz cards without dropping the notice, local
-/// gauges, or the sucesos ticker.
-fn region_constraints(rest_height: u16) -> [Constraint; 4] {
-    let header = header_rows(rest_height);
-    if rest_height < pinned_rest_min(header) {
-        return default_region_constraints(header);
-    }
+fn local_rows(rest_height: u16) -> u16 {
     // Height 24 (rest 23) keeps a three-row local band so the sparkline
     // stays clipped; height 28 (rest 27) restores the gold-trend row.
-    let local = if rest_height >= 27 {
+    if rest_height >= 27 {
         4
     } else {
         PINNED_LOCAL_HEIGHT
-    };
+    }
+}
+
+/// Header, body, local, ticker heights for `rest` (frame minus status).
+/// Ticker is capped at [`MAX_TICKER_HEIGHT`] and never eats leftover rows;
+/// leftover sits below the ticker as an unrendered spacer.
+fn band_heights(rest_height: u16) -> (u16, u16, u16, u16) {
+    if rest_height == 0 {
+        return (0, 0, 0, 0);
+    }
+    let header = header_rows(rest_height).min(rest_height);
+    let mut rem = rest_height - header;
+    let body = FULL_ROSTER_BODY_HEIGHT.min(rem);
+    rem -= body;
+    let local = local_rows(rest_height).min(rem);
+    rem -= local;
+    let ticker = rem.min(MAX_TICKER_HEIGHT);
+    (header, body, local, ticker)
+}
+
+/// Picks vertical region constraints for `rest` (the frame minus the
+/// reserved status row). Body is pinned to six identity rows when they
+/// fit; the ticker is a Length cap, never a Min that grows with the
+/// window. A trailing `Min(0)` spacer absorbs leftover height so the
+/// dashboard stays top-aligned.
+fn region_constraints(rest_height: u16) -> [Constraint; 5] {
+    let (header, body, local, ticker) = band_heights(rest_height);
     [
         Constraint::Length(header),
-        Constraint::Length(FULL_ROSTER_BODY_HEIGHT),
+        Constraint::Length(body),
         Constraint::Length(local),
-        Constraint::Min(1),
+        Constraint::Length(ticker),
+        Constraint::Min(0),
     ]
 }
 
@@ -187,8 +200,9 @@ pub struct LiveLayout {
 /// (+ gold sparkline). A WIDTH below [`MIN_CHART_WIDTH`] hides every chart
 /// family. Hiding stays monotonic in both dimensions, and strictly follows
 /// the spec priority order: sparkline → K/D/A → inventory → level → CS.
-/// The ticker compresses first (`Min(1)`); the status row belongs to no
-/// tier and never hides.
+/// The ticker compresses first (capped Length, down to 1); leftover
+/// height is an unrendered spacer, never extra sucesos. The status row
+/// belongs to no tier and never hides.
 pub fn select_layout(area: Rect) -> LiveLayout {
     let mut visible = ChartSet::ALL;
     if area.height < SPARKLINE_MIN_HEIGHT {
@@ -283,14 +297,16 @@ pub(crate) fn split_regions(area: Rect) -> Regions {
             body: rects[1],
             local: rects[2],
             ticker: rects[3],
+            // rects[4] is the Min(0) spacer: leftover height below the
+            // ticker / above the status row. Do not render into it.
             status,
         };
     }
-    let header = take_rows(&mut rest, 1);
-    let body = take_rows(&mut rest, 5);
-    let local = take_rows(&mut rest, 4);
-    let remaining = rest.height;
-    let ticker = take_rows(&mut rest, remaining);
+    let (header_h, body_h, local_h, ticker_h) = band_heights(rest.height);
+    let header = take_rows(&mut rest, header_h);
+    let body = take_rows(&mut rest, body_h);
+    let local = take_rows(&mut rest, local_h);
+    let ticker = take_rows(&mut rest, ticker_h);
     Regions {
         header,
         body,

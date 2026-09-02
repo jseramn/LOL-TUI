@@ -2,9 +2,9 @@
 //!
 //! The dashboard renders the [`App`]'s latest retained [`Snapshot`] every
 //! frame into the shell's disjoint regions: a scoreboard headline in the
-//! header band, ORDER and CHAOS **side-by-side** player cards in the body
-//! (identity line + visualization row), and the local strip in its own
-//! band. Gold renders only on the local-player strip (task 4.4).
+//! header band, ORDER and CHAOS **side-by-side** identity cards in the body
+//! (one line per player), and the local strip in its own band. Gold renders
+//! only on the local-player strip (task 4.4).
 //!
 //! Compliance (design): the respawn value printed here is the exposed
 //! snapshot value verbatim — nothing is derived or counted down locally.
@@ -54,7 +54,7 @@ fn draw_snapshot<G>(
     }
     draw_lines(frame, regions.header, &headline);
 
-    super::team::render(frame, snapshot, layout.columns, layout.visible);
+    super::team::render(frame, snapshot, layout.columns);
 
     // Local-player strip (ui spec R4): the ONLY surface that ever renders
     // gold. `activePlayer` absent from the payload → no strip at all. The
@@ -83,5 +83,5 @@ fn draw_snapshot<G>(
         }
     }
 
-    super::ticker::render(&snapshot.events, regions.ticker, frame);
+    super::ticker::render(snapshot, regions.ticker, frame);
 }

@@ -1,24 +1,24 @@
 En partida  12:34  Clasica | Orden 23 - 20 Caos | 1 dragon  1 heraldo  1 torre  
-Syndra (central) adelanta a Ahri: 35 subditos y 1 nivel (18 por minuto).        
-Orden lleva 1 dragon. Caos lleva 1 heraldo. Orden lleva 1 torre.                
-Graves (jungla de Caos) muerto 34 segundos: ventana para presionar ese carril.  
+CALLE Syndra (central) adelanta a Ahri: 35 subditos y 1 nivel (18 por minuto).  
+AHORA Graves (jungla de Caos) muerto 34s - presiona ese carril.                 
+TU    Ahri: participas en 13 de las 23 eliminaciones de Orden.                  
 Equipo Orden  23                        │ Equipo Caos  20                       
-Superior Aatrox nivel 13 212 subditos   Superior Darius nivel 12 198 subditos   
-Lv████░ K███  D█    A█    CS████  ▓▓▓▓▓▓Lv███░░ K██   D███  A     CS████  ▓▓▓▓▓▓
-Lee Sin nivel 12 168 subditos Muerto 12 Graves nivel 12 176 subditos Muerto 34  
-Lv███░░ K██   D██   A██   CS███   ▓▓▓▓▓▓Lv███░░ K███  D██   A█    CS███   ▓▓▓▓▓▓
-Central Ahri nivel 12 6/1/7 196 subditosCentral Syndra nivel 13 230 subditos    
-Lv███░░ K███  D█    A██   CS███   ▓▓▓▓▓▓Lv████░ K████ D█    A█    CS████  ▓▓▓▓▓▓
-Tirador Jinx nivel 11 7/2/3 244 subditosTirador Kai'Sa nivel 11 210 subditos    
-Lv███░░ K████ D█    A█    CS█████ ▓▓▓▓▓▓Lv███░░ K██   D███  A█    CS████  ▓▓▓▓▓▓
-Soporte Lulu nivel 10 1/4/18 48 subditosSoporte Thresh nivel 9 48 subditos      
-Lv███░░ K█    D███  A████ CS      ▓▓▓▓▓▓Lv██░░░ K     D████ A███  CS      ▓▓▓▓▓▓
-Tu Ahri  nivel 12  oro 1235  Vida 1875/2015  mana 940/1120  Q4 W2 E3 R1         
+Superior Aatrox nivel 13 5/2/4 212      Superior Darius nivel 12 3/4/2 198      
+Jungla Lee Sin nivel 12 168 Muerto 12s  Jungla Graves nivel 12 176 Muerto 34s   
+Central Ahri nivel 12 6/1/7 196         Central Syndra nivel 13 8/2/6 230       
+Tirador Jinx nivel 11 7/2/3 244         Tirador Kai'Sa nivel 11 4/5/4 210       
+Soporte Lulu nivel 10 1/4/18 48         Soporte Thresh nivel 9 0/6/14 48        
+Tu Ahri  nivel 12  oro 1235  Q4 W2 E3 R1                                        
 Vida  93% █████████████████████████████████████████████████████████████████░░░░░
 Mana  84% ██████████████████████████████████████████████████████████░░░░░░░░░░░░
-Sucesos                                                                         
+Sucesos clave                                                                   
 19:38  aniquilacion  Chaos                                                      
-15:21  heraldo  TopGap                                                          
-11:43  ADCarryMain  torre  +MidMage +SupportSage                                
-08:32  dragon Chemtech  JungleKing  robado                                      
-This product is not endorsed by Riot Games. | state=in-game ok | updated 23:46:5
+15:21  heraldo  Darius                                                          
+11:43  Jinx  torre  +2                                                          
+08:32  dragon Chemtech  Lee Sin  robado                                         
+03:02  primera sangre  Order                                                    
+                                                                                
+                                                                                
+                                                                                
+                                                                                
+This product is not endorsed by Riot Games. | state=in-game ok | updated 08:53:3

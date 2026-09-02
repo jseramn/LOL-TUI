@@ -373,8 +373,12 @@ fn header_band_shows_decision_briefing_under_the_scoreboard() {
         "scoreboard stays on the first header rows: {band}"
     );
     assert!(
-        band.contains("subditos") || band.contains("dragon") || band.contains("ventana"),
+        band.contains("subditos") || band.contains("carril") || band.contains("participas"),
         "briefing must cross live data into a decision: {band}"
+    );
+    assert!(
+        band.contains("CALLE") || band.contains("AHORA") || band.contains("TU"),
+        "briefing lines are tagged: {band}"
     );
     assert!(
         !band.contains("CS") && !band.contains("DRG") && !band.contains("KP"),

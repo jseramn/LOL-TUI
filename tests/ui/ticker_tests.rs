@@ -1,7 +1,7 @@
 //! Objective/kill event ticker contracts (tasks 5.1–5.2, ui spec R5):
-//! the ticker lists match events with their participants and the exposed
-//! `EventTime` values as `mm:ss`, and degrades to an explicit empty-state
-//! message when the snapshot carries zero events.
+//! the ticker lists curated sucesos clave with champion names and the
+//! exposed `EventTime` values as `mm:ss`, and degrades to an explicit
+//! empty-state message when the snapshot carries zero events.
 //!
 //! Snapshots come straight from the offline fixture corpus (design D5);
 //! rendering is asserted through ratatui [`TestBackend`] buffers.
@@ -74,18 +74,26 @@ fn ticker_lists_events_with_participants_and_exposed_times() {
         "EventTime 182.44 as clock: {first_blood}"
     );
 
-    let turret = require_row(&buffer, "ADCarryMain");
+    let turret = require_row(&buffer, "11:43");
     assert!(
         turret.contains("torre"),
-        "participants as exposed: {turret}"
+        "turret event must stay on the ticker: {turret}"
     );
     assert!(
-        turret.contains("11:43"),
-        "EventTime 703.42 as clock: {turret}"
+        turret.contains("Jinx"),
+        "ADCarryMain maps to Jinx: {turret}"
+    );
+    assert!(
+        turret.contains("+2"),
+        "two turret assisters collapse to +N: {turret}"
+    );
+    assert!(
+        !turret.contains("ADCarryMain") && !turret.contains("MidMage"),
+        "summoner names must not crowd the turret line: {turret}"
     );
 
     let dragon = require_row(&buffer, "Chemtech");
-    for token in ["JungleKing", "robado", "08:32"] {
+    for token in ["Lee Sin", "robado", "08:32"] {
         assert!(dragon.contains(token), "stolen dragon wording: {dragon}");
     }
 }
@@ -95,10 +103,14 @@ fn ticker_lists_events_with_participants_and_exposed_times() {
 fn ticker_lists_newest_events_first() {
     let buffer = draw(&live_app_with("full"));
     let ace_y = find_row(&buffer, "aniquilacion").expect("ace is the latest fixture event");
-    let start_y = find_row(&buffer, "inicio").expect("game start still listed");
+    let dragon_y = find_row(&buffer, "Chemtech").expect("older dragon still listed");
     assert!(
-        ace_y < start_y,
-        "newest event must sit above older ones ({ace_y} vs {start_y})"
+        ace_y < dragon_y,
+        "newest curated event must sit above older ones ({ace_y} vs {dragon_y})"
+    );
+    assert!(
+        find_row(&buffer, "inicio").is_none(),
+        "GameStart is dropped when higher-priority sucesos exist"
     );
 }
 
@@ -109,17 +121,15 @@ fn ticker_section_sits_below_the_local_strip() {
     let buffer = draw(&live_app_with("full"));
 
     let local_y = find_row(&buffer, "Tu").expect("local strip");
-    let events_y = find_row(&buffer, "Sucesos").expect("Sucesos section header");
+    let events_y = find_row(&buffer, "Sucesos clave").expect("Sucesos clave section header");
     assert!(events_y > local_y, "ticker belongs under the panels");
 
-    let first_event_y = find_row(&buffer, "inicio").expect("game start listed");
+    let first_event_y = find_row(&buffer, "aniquilacion").expect("newest curated event listed");
     assert!(
         first_event_y > events_y,
         "event lines follow the section header"
     );
 }
-
-// --- Task 5.1 / ui spec R5/S2: zero events degrade to an empty state ---
 
 /// A snapshot whose event list is empty renders an explicit empty-state
 /// message instead of failing (the `empty_events` fixture omits the key).
@@ -127,7 +137,7 @@ fn ticker_section_sits_below_the_local_strip() {
 fn empty_event_list_shows_placeholder_instead_of_failing() {
     let buffer = draw(&live_app_with("empty_events"));
 
-    find_row(&buffer, "Sucesos").expect("section header still present");
+    find_row(&buffer, "Sucesos clave").expect("section header still present");
     let placeholder = require_row(&buffer, "sin eventos");
     assert!(
         !placeholder.contains(':') || placeholder.contains("sin eventos"),
@@ -137,4 +147,21 @@ fn empty_event_list_shows_placeholder_instead_of_failing() {
         !placeholder.contains("inicio"),
         "empty state must not invent events: {placeholder}"
     );
+}
+
+#[test]
+fn dump_events_caps_at_five_champion_named_lines() {
+    let dumped = tui_lol::ui::ticker::dump_events(&snapshot_from_fixture("full"));
+    assert!(dumped.contains("Sucesos clave"));
+    assert!(!dumped.contains("inicio"));
+    assert!(!dumped.contains("00:15  subditos"));
+    let event_lines: Vec<_> = dumped
+        .lines()
+        .filter(|line| !line.is_empty() && *line != "Sucesos clave")
+        .collect();
+    assert!(
+        event_lines.len() <= 5,
+        "dump must cap curated sucesos: {event_lines:?}"
+    );
+    assert!(dumped.contains("Jinx") && dumped.contains("Lee Sin"));
 }
