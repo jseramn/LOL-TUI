@@ -1,6 +1,7 @@
 # tui-lol
 
 [![CI](https://github.com/jseramn/LOL-TUI/actions/workflows/ci.yml/badge.svg)](https://github.com/jseramn/LOL-TUI/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/jseramn/LOL-TUI)](https://github.com/jseramn/LOL-TUI/releases/latest)
 
 A terminal dashboard for a **live League of Legends match**, powered by the Live Client Data API. It shows the score, your lane and gold, a compact roster, key events, and short contextual guidance. The interface labels remain in Spanish.
 
