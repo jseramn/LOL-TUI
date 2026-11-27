@@ -1,5 +1,8 @@
 # tui-lol
 
+[![CI](https://github.com/jseramn/LOL-TUI/actions/workflows/ci.yml/badge.svg)](https://github.com/jseramn/LOL-TUI/actions/workflows/ci.yml)
+
+
 Dashboard de terminal para una partida **en curso** de League of Legends (Live Client Data API).
 
 ## Un solo comando (ubicar + actualizar + arrancar)
@@ -7,7 +10,7 @@ Dashboard de terminal para una partida **en curso** de League of Legends (Live C
 PowerShell, **ya en partida** (no lobby). Desde cualquier carpeta:
 
 ```powershell
-cd E:\dev\TUI-LOL\LOL-TUI; git checkout main; git pull; powershell -ExecutionPolicy Bypass -File scripts\run-live.ps1
+cd .\LOL-TUI; git checkout main; git pull; powershell -ExecutionPolicy Bypass -File scripts\run-live.ps1
 ```
 
 Si no hay partida, el script **diagnostica** y arranca la demo sola. Salir: **`q`** o **`Esc`**. Solo demo: `-Replay`. Solo live (sin demo): `-LiveOnly`.
@@ -15,19 +18,19 @@ Si no hay partida, el script **diagnostica** y arranca la demo sola. Salir: **`q
 Próximas veces (después de ese `git pull`):
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File E:\dev\TUI-LOL\LOL-TUI\scripts\run-live.ps1 -Pull
+powershell -ExecutionPolicy Bypass -File scripts\run-live.ps1 -Pull
 ```
 
 ### Identidad de la partida
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File E:\dev\TUI-LOL\LOL-TUI\scripts\live-id.ps1
+powershell -ExecutionPolicy Bypass -File scripts\live-id.ps1
 ```
 
 ### Túnel (solo si un agente cloud debe leer tu partida; no hace falta en local)
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File E:\dev\TUI-LOL\LOL-TUI\scripts\live-id.ps1 -Tunnel
+powershell -ExecutionPolicy Bypass -File scripts\live-id.ps1 -Tunnel
 ```
 
 Pega al agente la línea `TUI_LOL_LIVE_URL=https://....trycloudflare.com`. **Nunca** expongas el LCU.
@@ -59,7 +62,7 @@ Este repo en Windows usa el toolchain **`x86_64-pc-windows-gnu`**. `cargo run` e
 En GitHub: **Actions** de esta rama → última ejecución verde → artifact `tui-lol-windows-gnu` → `tui-lol.exe`. Ponlo en la carpeta del repo (o junto al `.exe`) y, **ya en partida**:
 
 ```powershell
-cd E:\dev\TUI-LOL\LOL-TUI
+cd .\LOL-TUI
 .\tui-lol.exe
 ```
 
@@ -67,18 +70,7 @@ Demo sin LoL: `.\tui-lol.exe replay tests\fixtures\allgamedata\full.json`
 
 ### Opción B — compilar en el PC (un solo job)
 
-Copia esto **tal cual** (también lo hace `scripts/run-live.ps1`):
-
-```powershell
-$env:CARGO_HOME='E:\rust\cargo'
-$env:RUSTUP_HOME='E:\rust\rustup'
-$env:Path='E:\w64devkit\w64devkit\bin;E:\rust\rustup\toolchains\stable-x86_64-pc-windows-gnu\lib\rustlib\x86_64-pc-windows-gnu\bin\self-contained;E:\rust\cargo\bin;'+$env:Path
-$env:RUSTFLAGS='-Clink-self-contained=yes'
-cd E:\dev\TUI-LOL\LOL-TUI
-git checkout main
-git pull
-cargo run -j 1
-```
+Desde la carpeta del repositorio, el lanzador prepara el toolchain y compila con un solo job:
 
 O un solo archivo:
 
@@ -94,7 +86,7 @@ powershell -ExecutionPolicy Bypass -File scripts/run-live.ps1 -Replay
 
 Salir: **`q`** o **`Esc`**.
 
-`.cargo/config.toml` fija `jobs = 1` y un `dev` sin debuginfo/incremental para no hinchar el pagefile. Si aún falla `dlltool.exe: program not found`, falta `E:\w64devkit\w64devkit\bin` en el PATH (bloque de arriba).
+`.cargo/config.toml` fija `jobs = 1` y un `dev` sin debuginfo/incremental para no hinchar el pagefile. Si aún falla `dlltool.exe: program not found`, configura `W64DEVKIT_HOME` con la carpeta de w64devkit o agrega su directorio `bin` al PATH.
 
 ### Comprobar identidad / reloj de partida
 
