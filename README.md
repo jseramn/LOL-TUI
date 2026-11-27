@@ -1,3 +1,5 @@
+<img src="assets/banner.png" alt="Green terminal dashboard for a live League of Legends match" width="100%" />
+
 # tui-lol
 
 [![CI](https://github.com/jseramn/LOL-TUI/actions/workflows/ci.yml/badge.svg)](https://github.com/jseramn/LOL-TUI/actions/workflows/ci.yml)
