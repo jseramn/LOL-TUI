@@ -3,7 +3,7 @@
 # cargo run -j 1 so rustc does not OOM the pagefile.
 #
 # From ANY directory (update + start):
-#   powershell -ExecutionPolicy Bypass -File E:\dev\TUI-LOL\LOL-TUI\scripts\run-live.ps1 -Pull
+#   powershell -ExecutionPolicy Bypass -File <ruta-del-repositorio>\scripts\run-live.ps1 -Pull
 #
 # Already in the repo:
 #   powershell -ExecutionPolicy Bypass -File scripts\run-live.ps1
@@ -21,15 +21,17 @@ param(
 $ErrorActionPreference = "Stop"
 
 function Enable-WindowsGnuToolchain {
-    if (Test-Path "E:\rust\cargo") { $env:CARGO_HOME = "E:\rust\cargo" }
-    if (Test-Path "E:\rust\rustup") { $env:RUSTUP_HOME = "E:\rust\rustup" }
+    if (-not $env:CARGO_HOME) { $env:CARGO_HOME = Join-Path $env:USERPROFILE ".cargo" }
+    if (-not $env:RUSTUP_HOME) { $env:RUSTUP_HOME = Join-Path $env:USERPROFILE ".rustup" }
     $prefix = @()
-    if (Test-Path "E:\w64devkit\w64devkit\bin") {
-        $prefix += "E:\w64devkit\w64devkit\bin"
+    if ($env:W64DEVKIT_HOME) {
+        $w64Bin = Join-Path $env:W64DEVKIT_HOME "bin"
+        if (Test-Path $w64Bin) { $prefix += $w64Bin }
     }
-    $dlltoolHome = "E:\rust\rustup\toolchains\stable-x86_64-pc-windows-gnu\lib\rustlib\x86_64-pc-windows-gnu\bin\self-contained"
+    $dlltoolHome = Join-Path $env:RUSTUP_HOME "toolchains\stable-x86_64-pc-windows-gnu\lib\rustlib\x86_64-pc-windows-gnu\bin\self-contained"
     if (Test-Path $dlltoolHome) { $prefix += $dlltoolHome }
-    if (Test-Path "E:\rust\cargo\bin") { $prefix += "E:\rust\cargo\bin" }
+    $cargoBin = Join-Path $env:CARGO_HOME "bin"
+    if (Test-Path $cargoBin) { $prefix += $cargoBin }
     if ($prefix.Count -gt 0) {
         $env:Path = ($prefix -join ";") + ";" + $env:Path
     }
@@ -103,7 +105,7 @@ function Write-Diagnosis {
     if ($cargo) {
         Write-Host ("cargo      {0}" -f $cargo.Source)
     } else {
-        Write-Host "cargo      NO encontrado (hace falta E:\rust\cargo\bin)"
+        Write-Host "cargo      NO encontrado (revisa CARGO_HOME o PATH)"
     }
     if ($rustc) {
         Write-Host ("rustc      {0}" -f $rustc.Source)
@@ -162,7 +164,7 @@ function Start-Tui {
     param([string[]]$CargoArgs)
     $cargo = Get-Command cargo -ErrorAction SilentlyContinue
     if (-not $cargo) {
-        Write-Host "cargo no esta en PATH. Instala rust en E:\rust o abre el terminal donde cargo --version funcione."
+        Write-Host "cargo no esta en PATH. Instala Rust o configura CARGO_HOME."
         exit 1
     }
     Write-Host ("arrancando: cargo run -j 1 {0}" -f ($CargoArgs -join " "))
