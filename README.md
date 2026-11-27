@@ -2,172 +2,57 @@
 
 [![CI](https://github.com/jseramn/LOL-TUI/actions/workflows/ci.yml/badge.svg)](https://github.com/jseramn/LOL-TUI/actions/workflows/ci.yml)
 
+A terminal dashboard for a **live League of Legends match**, powered by the Live Client Data API. It shows the score, your lane and gold, a compact roster, key events, and short contextual guidance. The interface labels remain in Spanish.
 
-Dashboard de terminal para una partida **en curso** de League of Legends (Live Client Data API).
+## Get started on Windows
 
-## Un solo comando (ubicar + actualizar + arrancar)
-
-PowerShell, **ya en partida** (no lobby). Desde cualquier carpeta:
-
-```powershell
-cd .\LOL-TUI; git checkout main; git pull; powershell -ExecutionPolicy Bypass -File scripts\run-live.ps1
-```
-
-Si no hay partida, el script **diagnostica** y arranca la demo sola. Salir: **`q`** o **`Esc`**. Solo demo: `-Replay`. Solo live (sin demo): `-LiveOnly`.
-
-Próximas veces (después de ese `git pull`):
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\run-live.ps1 -Pull
-```
-
-### Identidad de la partida
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\live-id.ps1
-```
-
-### Túnel (solo si un agente cloud debe leer tu partida; no hace falta en local)
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts\live-id.ps1 -Tunnel
-```
-
-Pega al agente la línea `TUI_LOL_LIVE_URL=https://....trycloudflare.com`. **Nunca** expongas el LCU.
-
-## Requisitos
-
-- **League of Legends** con una partida **ya cargada o en juego** (no lobby / selección de campeón).
-- **Rust stable** (`rustup` + `cargo`).
-- **Windows Terminal** recomendado (también funciona en conhost clásico).
-
-> El puerto `https://127.0.0.1:2999` solo responde **durante la partida**.  
-> El oro solo aparece en tu franja (la línea que empieza por **Tú**); el resto de paneles no muestran oro.  
-> La vista en vivo es un dashboard curado (marcador, consejo etiquetado, roster compacto, sucesos clave), no un volcado de cada eliminacion. Cabecera con reloj `mm:ss` y hasta tres frases etiquetadas (CALLE / AHORA / TU): brecha de carril y ventana si un enemigo esta muerto (en Abismo: pelea y eliminaciones, no calle). Cartas en espanol (rol, nivel, subditos) y sucesos clave con nombres de campeon. Sin acronimos de estadisticas.
-
-## Clonar y usar main
+Install [Rust](https://rustup.rs/) and clone this repository. Enter a match before starting the live dashboard. The Live Client API is available during the match, not in the lobby or champion select.
 
 ```powershell
 git clone https://github.com/jseramn/LOL-TUI.git
 cd LOL-TUI
-git checkout main
+powershell -ExecutionPolicy Bypass -File scripts\run-live.ps1
 ```
 
-## En vivo (tu PC)
+The launcher locates the repository, prepares the Windows GNU toolchain, and runs Cargo with one job to reduce memory pressure. If no match is active, it explains the problem and starts the offline demo. Exit with **q** or **Esc**. Use `-Pull` to update before starting, `-Replay` for the demo, or `-LiveOnly` to stop when no match is available.
 
-Este repo en Windows usa el toolchain **`x86_64-pc-windows-gnu`**. `cargo run` en paralelo agota el archivo de paginación (`os error 1455` / `memory allocation failed`) y necesita `dlltool.exe` de w64devkit.
+The project targets `x86_64-pc-windows-gnu`. If Cargo cannot find `dlltool.exe`, set `W64DEVKIT_HOME` to your w64devkit directory or add its `bin` directory to PATH. The launcher respects `CARGO_HOME` and `RUSTUP_HOME`; by default, they resolve under your user profile.
 
-### Opción A — `.exe` ya compilado (recomendado si rustc se queda sin RAM)
+### Prebuilt Windows executable
 
-En GitHub: **Actions** de esta rama → última ejecución verde → artifact `tui-lol-windows-gnu` → `tui-lol.exe`. Ponlo en la carpeta del repo (o junto al `.exe`) y, **ya en partida**:
+Open [Actions](https://github.com/jseramn/LOL-TUI/actions/workflows/ci.yml), select the latest successful run, and download the `tui-lol-windows-gnu` artifact. Place `tui-lol.exe` in the repository directory and run `.\tui-lol.exe` during a match. For a demo without the game, run `.\tui-lol.exe replay tests\fixtures\allgamedata\full.json`.
 
-```powershell
-cd .\LOL-TUI
-.\tui-lol.exe
-```
-
-Demo sin LoL: `.\tui-lol.exe replay tests\fixtures\allgamedata\full.json`
-
-### Opción B — compilar en el PC (un solo job)
-
-Desde la carpeta del repositorio, el lanzador prepara el toolchain y compila con un solo job:
-
-O un solo archivo:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/run-live.ps1 -Pull
-```
-
-Demo sin partida (misma env, sin LoL):
-
-```powershell
-powershell -ExecutionPolicy Bypass -File scripts/run-live.ps1 -Replay
-```
-
-Salir: **`q`** o **`Esc`**.
-
-`.cargo/config.toml` fija `jobs = 1` y un `dev` sin debuginfo/incremental para no hinchar el pagefile. Si aún falla `dlltool.exe: program not found`, configura `W64DEVKIT_HOME` con la carpeta de w64devkit o agrega su directorio `bin` al PATH.
-
-### Comprobar identidad / reloj de partida
-
-```powershell
-curl.exe -k https://127.0.0.1:2999/liveclientdata/gamestats
-python scripts/live_bridge.py --id-only
-```
-
-## Demo sin partida (offline)
+## Offline demo and inspection
 
 ```powershell
 cargo run -j 1 -- replay tests/fixtures/allgamedata/full.json
-```
-
-Un snapshot en texto (sin TUI):
-
-```powershell
 cargo run -- dump tests/fixtures/allgamedata/full.json
-```
-
-### Capturas de layout (revisión sin LoL)
-
-El ejemplo `dump_frame` renderiza el dashboard live desde `tests/fixtures/allgamedata/full.json` con ratatui `TestBackend` y escribe UTF-8 en `docs/frames/`:
-
-```powershell
 cargo run --example dump_frame
-```
-
-Archivos generados (80×24 canónico y 120×32 ancho):
-
-- [`docs/frames/live-80x24.txt`](docs/frames/live-80x24.txt)
-- [`docs/frames/live-120x32.txt`](docs/frames/live-120x32.txt)
-
-## Ayuda CLI
-
-```powershell
 cargo run -- --help
 ```
 
-Comandos: TUI por defecto, `replay`, `dump`, `bridge` (proxy HTTP para túneles).
+`replay` opens the dashboard. `dump` prints a text snapshot. The `dump_frame` example writes UTF-8 frames under `docs/frames/` using Ratatui's test backend. See the [80×24](docs/frames/live-80x24.txt) and [120×32](docs/frames/live-120x32.txt) examples.
 
----
-
-## Apéndice: túnel opcional (agente remoto)
-
-**No hace falta** para jugar en local. Solo si un agente en la nube debe leer tu partida:
-
-El puerto del juego (`https://127.0.0.1:2999`) solo existe **durante la partida** y usa un certificado Riot. No lo expongas directamente. En su lugar, levanta el **puente HTTP en loopback** (`127.0.0.1:18789`) y un túnel corto sobre ese puente. **Nunca** tunneles el LCU (cliente de Riot en otro puerto).
-
-### Identidad de la partida
-
-El reloj/modo/mapa salen del Live Client (`gamestats`). El **id numérico** suele faltar en esa API; la fuente fiable es el LCU (lockfile o línea de comandos de `LeagueClientUx` en Windows):
+## Check match identity
 
 ```powershell
 curl.exe -k https://127.0.0.1:2999/liveclientdata/gamestats
 python scripts/live_bridge.py --id-only
 ```
 
-### Cloudflare quick tunnel (URL pública temporal)
+The Live Client endpoint provides the match clock, mode and map. The numeric match ID may be absent there; the bridge reads it from the Riot client on Windows when available. The live dashboard shows your gold only in your own row.
 
-`cloudflared tunnel --url` crea un enlace **trycloudflare.com** de un solo uso — no es `cloudflared serve` ni un hostname permanente.
+## Optional remote connection
+
+A remote coding harness can read match data through a temporary tunnel. The game's Live Client endpoint at `https://127.0.0.1:2999` exists only during a match and uses a Riot certificate. Expose the local HTTP bridge at `127.0.0.1:18789`, then tunnel **that bridge**. Never expose the Riot League Client Update API directly.
 
 ```powershell
-python scripts/live_bridge.py --tunnel
-# o en dos terminales:
+powershell -ExecutionPolicy Bypass -File scripts\live-id.ps1 -Tunnel
+# Or run the bridge and tunnel separately:
 cargo run -- bridge
 cloudflared tunnel --url http://127.0.0.1:18789
 ```
 
-### Tailscale (solo tailnet o público con Funnel)
+The command prints a `TUI_LOL_LIVE_URL` for the remote harness. `cloudflared tunnel --url` creates a temporary `trycloudflare.com` URL. For access limited to your tailnet, use `tailscale serve --bg 18789`. Use `tailscale funnel 18789` when you need a public URL. The remote client can pass `--live-url https://<tunnel-host>` or set `TUI_LOL_LIVE_URL`.
 
-- **`tailscale serve`** — solo máquinas de tu tailnet (no Internet público).
-- **`tailscale funnel`** — si necesitas una URL pública (equivalente conceptual al quick tunnel).
-
-```powershell
-cargo run -- bridge
-tailscale serve --bg 18789
-# o, para URL pública:
-tailscale funnel 18789
-```
-
-El agente remoto usa `cargo run -- --live-url https://<host-del-tunel>` o la variable `TUI_LOL_LIVE_URL`.
-
-Verificación manual detallada: [`docs/manual-verify.md`](docs/manual-verify.md) (§12).
+For a full manual check, see [manual verification](docs/manual-verify.md).
