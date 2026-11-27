@@ -20,7 +20,7 @@ The project targets `x86_64-pc-windows-gnu`. If Cargo cannot find `dlltool.exe`,
 
 ### Prebuilt Windows executable
 
-Open [Actions](https://github.com/jseramn/LOL-TUI/actions/workflows/ci.yml), select the latest successful run, and download the `tui-lol-windows-gnu` artifact. Place `tui-lol.exe` in the repository directory and run `.\tui-lol.exe` during a match. For a demo without the game, run `.\tui-lol.exe replay tests\fixtures\allgamedata\full.json`.
+Download `tui-lol.exe` from the [latest release](https://github.com/jseramn/LOL-TUI/releases/latest), place it in the repository directory, and run `.\tui-lol.exe` during a match. For a demo without the game, run `.\tui-lol.exe replay tests\fixtures\allgamedata\full.json`. The [CI workflow](https://github.com/jseramn/LOL-TUI/actions/workflows/ci.yml) also publishes a build artifact for each successful run.
 
 ## Offline demo and inspection
 
